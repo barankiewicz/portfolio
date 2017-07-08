@@ -1,0 +1,11 @@
+li.header {
+  position:absolute;
+  float: top;
+  display: inline;
+
+}
+
+img.menu-img {
+  max-width: 32px;
+  max-height: 32px;
+}
