@@ -30,8 +30,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: 'public_html/portfolio/'
           local-dir: ./_site/
-          protocol: 'ftps'
-          security: 'strict'
+          protocol: 'ftp'
           port: 21
           state-name: .ftp-deploy-sync-state.json
           log-level: standard
