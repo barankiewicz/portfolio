@@ -25,5 +25,9 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
       - name: Wyślij przez FTP (lh.pl) using lftp
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          lftp -c "set ftp:ssl-allow no; open -u ${{ secrets.FTP_USERNAME }},'${{ secrets.FTP_PASSWORD }}' ${{ secrets.FTP_SERVER }}; mirror -R ./_site/ public_html/portfolio/"
+          lftp -u "$FTP_USERNAME","$FTP_PASSWORD" "$FTP_SERVER" -e "set ftp:ssl-allow no; mirror -R ./_site/ public_html/portfolio/; quit"
