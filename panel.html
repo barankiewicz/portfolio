@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control Panel · Alicja Barankiewicz</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#fff;--surface:#f5f5f5;--border:#ddd;--text:#111;--muted:#666;--accent:#D32F2F;
+}
+[data-theme="dark"]{--bg:#111;--surface:#1a1a1a;--border:#333;--text:#eee;--muted:#888;--accent:#D32F2F}
+body{
+  font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);
+  padding:24px;max-width:720px;margin:0 auto;line-height:1.4;
+}
+h1{font-size:1.1rem;font-weight:600;margin-bottom:20px;letter-spacing:.04em;text-transform:uppercase}
+h2{font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:0 0 10px;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:6px}
+.section{margin-bottom:20px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:8px}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:.65rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.field label span{color:var(--text)}
+input[type=range]{width:100%;accent-color:var(--accent);height:4px}
+select{width:100%;padding:3px 6px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:3px;font-size:.6rem;font-family:inherit}
+.presets{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:12px}
+.preset-btn{
+  padding:5px 2px;font-size:.55rem;font-weight:500;letter-spacing:.03em;text-transform:uppercase;
+  background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:3px;cursor:pointer;transition:.12s;
+}
+.preset-btn:hover{background:var(--border)}
+.preset-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.actions{display:flex;gap:8px;margin-top:16px}
+.btn{
+  padding:7px 14px;font-size:.62rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  border-radius:4px;cursor:pointer;transition:.12s;border:none;
+}
+.btn-reset{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+.btn-reset:hover{background:var(--border)}
+.btn-export{background:var(--accent);color:#fff}
+.btn-export:hover{opacity:.85}
+.btn-export.copied{opacity:.6}
+.theme-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.theme-toggle{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;cursor:pointer;font-size:.6rem;font-family:inherit}
+</style>
+</head>
+<body>
+
+<div class="theme-row">
+  <h1 style="margin:0">Control Panel</h1>
+  <button class="theme-toggle" id="themeToggle">Light</button>
+</div>
+
+<div class="section">
+  <h2>Grain Presets</h2>
+  <div class="presets" id="grainPresets">
+    <button class="preset-btn" data-preset="off">Off</button>
+    <button class="preset-btn" data-preset="dust">Dust</button>
+    <button class="preset-btn active" data-preset="grain">Grain</button>
+    <button class="preset-btn" data-preset="heavy">Heavy</button>
+    <button class="preset-btn" data-preset="cinema">Cinema</button>
+    <button class="preset-btn" data-preset="noir">Noir</button>
+    <button class="preset-btn" data-preset="warm">Warm</button>
+    <button class="preset-btn" data-preset="frost">Frost</button>
+    <button class="preset-btn" data-preset="rough">Rough</button>
+    <button class="preset-btn" data-preset="atmos">Atmos</button>
+  </div>
+  <div class="row">
+    <div class="field">
+      <label>Fine Opacity <span id="fvGrainOp">0.08</span></label>
+      <input type="range" id="grainOp" min="0" max="0.18" step="0.001" value="0.08">
+    </div>
+    <div class="field">
+      <label>Fine Size <span id="fvGrainSz">384</span></label>
+      <input type="range" id="grainSz" min="64" max="512" step="8" value="384">
+    </div>
+    <div class="field">
+      <label>Coarse Opacity <span id="fvCoarseOp">0.04</span></label>
+      <input type="range" id="coarseOp" min="0" max="0.18" step="0.001" value="0.04">
+    </div>
+    <div class="field">
+      <label>Coarse Size <span id="fvCoarseSz">512</span></label>
+      <input type="range" id="coarseSz" min="128" max="1024" step="16" value="512">
+    </div>
+    <div class="field">
+      <label>Wash Opacity <span id="fvWashOp">0.02</span></label>
+      <input type="range" id="washOp" min="0" max="0.15" step="0.001" value="0.02">
+    </div>
+    <div class="field">
+      <label>Wash Tint <span id="fvWashTint">0.05</span></label>
+      <input type="range" id="washTint" min="0" max="0.25" step="0.005" value="0.05">
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Vignette</h2>
+  <div class="row">
+    <div class="field">
+      <label>Alpha Light <span id="fvVigLt">0.35</span></label>
+      <input type="range" id="vigLt" min="0" max="1" step="0.01" value="0.35">
+    </div>
+    <div class="field">
+      <label>Alpha Dark <span id="fvVigDk">0.45</span></label>
+      <input type="range" id="vigDk" min="0" max="1" step="0.01" value="0.45">
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Perspective</h2>
+  <div class="row">
+    <div class="field">
+      <label>Perspective <span id="fvSkewP">1490</span></label>
+      <input type="range" id="skewP" min="200" max="2000" step="10" value="1490">
+    </div>
+    <div class="field">
+      <label>Angle Y <span id="fvSkewY">-8.5</span></label>
+      <input type="range" id="skewY" min="-20" max="0" step="0.5" value="-8.5">
+    </div>
+    <div class="field">
+      <label>Angle X <span id="fvSkewRX">3.5</span></label>
+      <input type="range" id="skewRX" min="-15" max="15" step="0.5" value="3.5">
+    </div>
+    <div class="field">
+      <label>Angle Z <span id="fvSkewRZ">-8</span></label>
+      <input type="range" id="skewRZ" min="-10" max="10" step="0.5" value="-8">
+    </div>
+    <div class="field">
+      <label>Depth <span id="fvSkewZ">-177</span></label>
+      <input type="range" id="skewZ" min="-500" max="500" step="1" value="-177">
+    </div>
+    <div class="field">
+      <label>Axis</label>
+      <select id="skewAxis">
+        <option value="50,50">Center</option>
+        <option value="0,100" selected>↙ Bottom-left</option>
+        <option value="100,100">↘ Bottom-right</option>
+        <option value="50,100">↓ Bottom-center</option>
+        <option value="0,50">← Left-center</option>
+        <option value="100,50">→ Right-center</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Layer &amp; Text</h2>
+  <div class="row">
+    <div class="field">
+      <label>Layer X <span id="fvSkewTX">90</span></label>
+      <input type="range" id="skewTX" min="-300" max="300" step="1" value="90">
+    </div>
+    <div class="field">
+      <label>Layer Y <span id="fvSkewTY">90</span></label>
+      <input type="range" id="skewTY" min="-300" max="300" step="1" value="90">
+    </div>
+    <div class="field">
+      <label>PORTFOLIO X <span id="fvSkewPO">500</span></label>
+      <input type="range" id="skewPO" min="-1500" max="1500" step="1" value="500">
+    </div>
+    <div class="field">
+      <label>PORTFOLIO Y <span id="fvSkewPOY">161</span></label>
+      <input type="range" id="skewPOY" min="-900" max="900" step="1" value="161">
+    </div>
+    <div class="field">
+      <label>Name X <span id="fvSkewNO">-91</span></label>
+      <input type="range" id="skewNO" min="-1500" max="1500" step="1" value="-91">
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Video</h2>
+  <div class="row">
+    <div class="field">
+      <label>Video X <span id="fvVidX">0</span></label>
+      <input type="range" id="vidX" min="-800" max="800" step="1" value="0">
+    </div>
+    <div class="field">
+      <label>Video Y <span id="fvVidY">611</span></label>
+      <input type="range" id="vidY" min="-800" max="800" step="1" value="611">
+    </div>
+    <div class="field">
+      <label>Video Scale <span id="fvVidS">1.10</span></label>
+      <input type="range" id="vidS" min="0.5" max="2" step="0.01" value="1.1">
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Nav Font</h2>
+  <div class="presets" id="navPresets">
+    <button class="preset-btn" data-font="editorial">Editorial</button>
+    <button class="preset-btn active" data-font="swiss">Swiss</button>
+    <button class="preset-btn" data-font="brutal">Brutal</button>
+    <button class="preset-btn" data-font="display">Display</button>
+    <button class="preset-btn" data-font="literary">Literary</button>
+    <button class="preset-btn" data-font="typewriter">Typewriter</button>
+    <button class="preset-btn" data-font="gallery">Gallery</button>
+    <button class="preset-btn" data-font="minimal">Minimal</button>
+    <button class="preset-btn" data-font="heritage">Heritage</button>
+    <button class="preset-btn" data-font="mono">Mono</button>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Color Theme</h2>
+  <div class="presets" id="colorPresets">
+    <button class="preset-btn active" data-color="crimson">Crimson</button>
+    <button class="preset-btn" data-color="cobalt">Cobalt</button>
+    <button class="preset-btn" data-color="ochre">Ochre</button>
+    <button class="preset-btn" data-color="emerald">Emerald</button>
+    <button class="preset-btn" data-color="amethyst">Amethyst</button>
+    <button class="preset-btn" data-color="teal">Teal</button>
+    <button class="preset-btn" data-color="magenta">Magenta</button>
+    <button class="preset-btn" data-color="auto">Auto</button>
+  </div>
+</div>
+
+<div class="actions">
+  <button class="btn btn-reset" id="btnReset">Reset All</button>
+  <button class="btn btn-export" id="btnExport">Export Config</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var grainPresets = {
+  off:    {opacity:0,    size:256, coarseOpacity:0,     coarseSize:256, washOpacity:0,    washTint:0},
+  dust:   {opacity:0.04, size:256, coarseOpacity:0.015, coarseSize:256, washOpacity:0.01, washTint:0.03},
+  grain:  {opacity:0.08, size:384, coarseOpacity:0.04,  coarseSize:512, washOpacity:0.02, washTint:0.05},
+  heavy:  {opacity:0.12, size:256, coarseOpacity:0.07,  coarseSize:512, washOpacity:0.03, washTint:0.07},
+  cinema: {opacity:0.10, size:384, coarseOpacity:0.06,  coarseSize:640, washOpacity:0.03, washTint:0.06},
+  noir:   {opacity:0.08, size:384, coarseOpacity:0.09,  coarseSize:768, washOpacity:0.05, washTint:0.10},
+  warm:   {opacity:0.06, size:384, coarseOpacity:0.03,  coarseSize:512, washOpacity:0.06, washTint:0.12},
+  frost:  {opacity:0.05, size:512, coarseOpacity:0.02,  coarseSize:384, washOpacity:0.02, washTint:0.04},
+  rough:  {opacity:0.04, size:256, coarseOpacity:0.11,  coarseSize:1024,washOpacity:0.01, washTint:0.03},
+  atmos:  {opacity:0.03, size:512, coarseOpacity:0.02,  coarseSize:512, washOpacity:0.09, washTint:0.16},
+};
+
+function read(key){ try{return JSON.parse(localStorage.getItem(key)||'{}');}catch(e){return{};} }
+function save(key,o){
+  localStorage.setItem(key, JSON.stringify(o));
+  localStorage.setItem('_panelVersion', Date.now() + Math.random());
+}
+
+function initSliders(){
+  // Load from localStorage or use defaults baked into the HTML values
+  var skew = read('skew');
+  var grain = read('grain');
+  var vig = read('vig') || {light:0.35, dark:0.45};
+  var activePreset = localStorage.getItem('grainPreset') || 'grain';
+  var navFont = localStorage.getItem('navFont') || 'swiss';
+
+  setVal('grainOp',   grain.opacity != null ? grain.opacity : 0.08);
+  setVal('grainSz',   grain.size != null ? grain.size : 384);
+  setVal('coarseOp',  grain.coarseOpacity != null ? grain.coarseOpacity : 0.04);
+  setVal('coarseSz',  grain.coarseSize != null ? grain.coarseSize : 512);
+  setVal('washOp',    grain.washOpacity != null ? grain.washOpacity : 0.02);
+  setVal('washTint',  grain.washTint != null ? grain.washTint : 0.05);
+  setVal('vigLt',     vig.light);
+  setVal('vigDk',     vig.dark);
+
+  setVal('skewP',    skew.p != null ? skew.p : 1490);
+  setVal('skewY',    skew.y != null ? skew.y : -8.5);
+  setVal('skewRX',   skew.rx != null ? skew.rx : 3.5);
+  setVal('skewRZ',   skew.rz != null ? skew.rz : -8);
+  setVal('skewZ',    skew.z != null ? skew.z : -177);
+  setVal('skewTX',   skew.tx != null ? skew.tx : 90);
+  setVal('skewTY',   skew.ty != null ? skew.ty : 90);
+  setVal('skewPO',   skew.pox != null ? skew.pox : 500);
+  setVal('skewPOY',  skew.poy != null ? skew.poy : 161);
+  setVal('skewNO',   skew.nox != null ? skew.nox : -91);
+  setVal('vidX',     skew.vx != null ? skew.vx : 0);
+  setVal('vidY',     skew.vy != null ? skew.vy : 611);
+  setVal('vidS',     skew.vs != null ? skew.vs : 1.1);
+  if (skew.axis) document.getElementById('skewAxis').value = skew.axis;
+
+  markActive('.presets[data-preset]', activePreset);
+  markActive('#navPresets [data-font]', navFont);
+  markActive('#colorPresets [data-color]', localStorage.getItem('colorTheme')||'crimson');
+}
+
+function setVal(id, v){
+  var el = document.getElementById(id);
+  if (el) el.value = v;
+  updateLabel(id, v);
+}
+
+function updateLabel(id, v){
+  var spans = {grainOp:'fvGrainOp',grainSz:'fvGrainSz',coarseOp:'fvCoarseOp',coarseSz:'fvCoarseSz',
+    washOp:'fvWashOp',washTint:'fvWashTint',vigLt:'fvVigLt',vigDk:'fvVigDk',
+    skewP:'fvSkewP',skewY:'fvSkewY',skewRX:'fvSkewRX',skewRZ:'fvSkewRZ',skewZ:'fvSkewZ',
+    skewTX:'fvSkewTX',skewTY:'fvSkewTY',skewPO:'fvSkewPO',skewPOY:'fvSkewPOY',skewNO:'fvSkewNO',
+    vidX:'fvVidX',vidY:'fvVidY',vidS:'fvVidS'};
+  var spanId = spans[id];
+  if (!spanId) return;
+  var span = document.getElementById(spanId);
+  if (!span) return;
+  if (id === 'vidS' || id === 'washTint') span.textContent = Number(v).toFixed(2);
+  else if (id.indexOf('Op') > -1 || id === 'vigLt' || id === 'vigDk') span.textContent = Number(v).toFixed(3);
+  else span.textContent = v;
+}
+
+function markActive(selector, value){
+  document.querySelectorAll(selector).forEach(function(b){
+    var attr = b.getAttribute('data-preset') || b.getAttribute('data-font') || b.getAttribute('data-color');
+    b.classList.toggle('active', attr === value);
+  });
+}
+
+function collectGrain(){
+  return {
+    opacity: +document.getElementById('grainOp').value,
+    size: +document.getElementById('grainSz').value,
+    coarseOpacity: +document.getElementById('coarseOp').value,
+    coarseSize: +document.getElementById('coarseSz').value,
+    washOpacity: +document.getElementById('washOp').value,
+    washTint: +document.getElementById('washTint').value,
+  };
+}
+
+function collectSkew(){
+  return {
+    p: +document.getElementById('skewP').value,
+    y: +document.getElementById('skewY').value,
+    rx: +document.getElementById('skewRX').value,
+    rz: +document.getElementById('skewRZ').value,
+    z: +document.getElementById('skewZ').value,
+    tx: +document.getElementById('skewTX').value,
+    ty: +document.getElementById('skewTY').value,
+    pox: +document.getElementById('skewPO').value,
+    poy: +document.getElementById('skewPOY').value,
+    nox: +document.getElementById('skewNO').value,
+    vx: +document.getElementById('vidX').value,
+    vy: +document.getElementById('vidY').value,
+    vs: +document.getElementById('vidS').value,
+    axis: document.getElementById('skewAxis').value,
+  };
+}
+
+function onInput(id){
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', function(){
+    var v = this.valueAsNumber != null ? this.valueAsNumber : this.value;
+    updateLabel(id, this.value);
+    if (id.indexOf('skew')===0 || id.indexOf('vid')===0){
+      save('skew', collectSkew());
+    } else if (id.indexOf('grain')===0 || id.indexOf('coarse')===0 || id.indexOf('wash')===0){
+      save('grain', collectGrain());
+    } else if (id === 'vigLt' || id === 'vigDk'){
+      save('vig', {light:+document.getElementById('vigLt').value, dark:+document.getElementById('vigDk').value});
+    }
+  });
+}
+
+['grainOp','grainSz','coarseOp','coarseSz','washOp','washTint',
+ 'vigLt','vigDk',
+ 'skewP','skewY','skewRX','skewRZ','skewZ','skewTX','skewTY','skewPO','skewPOY','skewNO',
+ 'vidX','vidY','vidS'].forEach(onInput);
+
+document.getElementById('skewAxis').addEventListener('change', function(){
+  save('skew', collectSkew());
+});
+
+// Grain presets
+document.getElementById('grainPresets').addEventListener('click', function(e){
+  var btn = e.target.closest('[data-preset]');
+  if (!btn) return;
+  var name = btn.getAttribute('data-preset');
+  var p = grainPresets[name];
+  if (!p) return;
+  localStorage.setItem('grainPreset', name);
+  setVal('grainOp', p.opacity);
+  setVal('grainSz', p.size);
+  setVal('coarseOp', p.coarseOpacity);
+  setVal('coarseSz', p.coarseSize);
+  setVal('washOp', p.washOpacity);
+  setVal('washTint', p.washTint);
+  save('grain', p);
+  markActive('[data-preset]', name);
+});
+
+// Nav font presets
+document.getElementById('navPresets').addEventListener('click', function(e){
+  var btn = e.target.closest('[data-font]');
+  if (!btn) return;
+  var name = btn.getAttribute('data-font');
+  localStorage.setItem('navFont', name);
+  markActive('#navPresets [data-font]', name);
+});
+
+// Color theme presets
+document.getElementById('colorPresets').addEventListener('click', function(e){
+  var btn = e.target.closest('[data-color]');
+  if (!btn) return;
+  var name = btn.getAttribute('data-color');
+  localStorage.setItem('colorTheme', name);
+  markActive('#colorPresets [data-color]', name);
+});
+
+// Reset
+document.getElementById('btnReset').addEventListener('click', function(){
+  localStorage.removeItem('skew');
+  localStorage.removeItem('grain');
+  localStorage.removeItem('grainPreset');
+  localStorage.removeItem('vig');
+  localStorage.removeItem('navFont');
+  localStorage.removeItem('colorTheme');
+  location.reload();
+});
+
+// Export
+document.getElementById('btnExport').addEventListener('click', function(){
+  var out = {
+    skew: collectSkew(),
+    grain: collectGrain(),
+    grainPreset: localStorage.getItem('grainPreset')||'grain',
+    vignette: {light:+document.getElementById('vigLt').value, dark:+document.getElementById('vigDk').value},
+    navFont: localStorage.getItem('navFont')||'swiss',
+    colorTheme: localStorage.getItem('colorTheme')||'crimson',
+  };
+  var json = JSON.stringify(out, null, 2);
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(json).then(function(){
+      var btn = document.getElementById('btnExport');
+      btn.textContent = 'Copied!'; btn.classList.add('copied');
+      setTimeout(function(){ btn.textContent = 'Export Config'; btn.classList.remove('copied'); }, 1500);
+    });
+  }
+});
+
+// Theme toggle for panel itself
+var html = document.documentElement;
+var themeBtn = document.getElementById('themeToggle');
+themeBtn.addEventListener('click', function(){
+  var cur = html.getAttribute('data-theme');
+  var next = cur === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  themeBtn.textContent = next === 'dark' ? 'Light' : 'Dark';
+});
+
+initSliders();
+})();
+</script>
+</body>
+</html>

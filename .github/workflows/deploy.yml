@@ -1,0 +1,37 @@
+name: deployuj
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ftp-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-ftp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skopiuj pliki publiczne do _site/
+        run: |
+          mkdir -p _site
+          cp index.html panel.html Alicja-Barankiewicz_CV_data_engineer.pdf _site/
+          cp *.mp4 _site/ 2>/dev/null || true
+      - name: Wyślij przez FTP (lh.pl)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: 'public_html/portfolio/'
+          local-dir: ./_site/
+          protocol: 'ftps'
+          security: 'strict'
+          port: 21
+          state-name: .ftp-deploy-sync-state.json
+          log-level: standard
