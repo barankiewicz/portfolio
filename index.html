@@ -410,7 +410,7 @@ body::before{
   border-color:var(--accent);
 }
 
-/* === PROJECTS === */
+/* === PROJECTS & WORK === */
 .proj-grid{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -448,6 +448,14 @@ body::before{
   letter-spacing:-.02em;
   margin-bottom:8px;
 }
+.proj-card h4 a{
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.proj-card h4 a:hover{
+  color: var(--accent);
+}
 .proj-card p{
   font-size:.78em;
   line-height:1.6;
@@ -473,6 +481,31 @@ body::before{
   font-size:.7rem;
   color:var(--accent);
   margin-top:12px;
+}
+.proj-img-wrap{
+  width:100%;
+  aspect-ratio:16/10;
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  margin-bottom:20px;
+  overflow:hidden;
+  position:relative;
+}
+.proj-img-wrap img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  transition: transform 0.5s ease;
+}
+.proj-card:hover .proj-img-wrap img{
+  transform: scale(1.03);
+}
+.proj-img-placeholder{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.65rem;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.1em;
 }
 
 /* === CONTACT === */
@@ -813,6 +846,7 @@ footer{
     <div class="nav-links">
       <a href="#">HOME</a>
       <a href="#cv">CV</a>
+      <a href="#projects">PROJECTS</a>
       <a href="#contact">CONTACT</a>
     </div>
     <div class="nav-meta">
@@ -969,7 +1003,86 @@ footer{
   <section id="projects" class="page">
     <div class="container">
       <div class="sect-header">
-        <h2 class="sect-title">Selected Projects</h2>
+        <h2 class="sect-title">Personal Projects</h2>
+        <p class="sect-desc">Open-source solutions, technical tools, and web applications built out of passion.</p>
+      </div>
+
+      <div class="proj-grid cv-block">
+        <div class="proj-card">
+          <div class="proj-img-wrap">
+            <img src="nazwozbior.png" alt="Nazwozbior.pl Preview" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="proj-img-placeholder" style="display:none;">nazwozbior.png</div>
+          </div>
+          <p class="proj-client">Web Application / Open Source</p>
+          <h4><a href="https://nazwozbior.pl" target="_blank" rel="noopener">nazwozbior.pl</a></h4>
+          <p>Wyszukiwarka imion dedykowana przede wszystkim osobom transpłciowym (ale nie tylko!), pomagająca odnaleźć idealne imię za pomocą zaawansowanych filtrów lingwistycznych i bazy danych imion męskich, żeńskich oraz neutralnych.</p>
+          <div class="proj-tags">
+            <span class="proj-tag">Python</span>
+            <span class="proj-tag">Web App</span>
+            <span class="proj-tag">Open Source</span>
+            <span class="proj-tag">UI/UX</span>
+          </div>
+          <p class="proj-result">Aktywny i wspierany projekt społecznościowy</p>
+        </div>
+
+        <div class="proj-card">
+          <div class="proj-img-wrap">
+            <img src="zabka-stats.png" alt="Zabka-stats Preview" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="proj-img-placeholder" style="display:none;">zabka-stats.png</div>
+          </div>
+          <p class="proj-client">Data &amp; GIS Analytics</p>
+          <h4><a href="https://zabka-stats.rejewska.pl" target="_blank" rel="noopener">zabka-stats</a></h4>
+          <p>Niezależna platforma analityczno-infotainment dedykowana sieci franczyzowej Żabka w Polsce. Projekt integruje dane przestrzenne z GUGIK oraz GUS BDL, tworząc interaktywne korelacje demograficzne i atlas ekspansji sklepów.</p>
+          <div class="proj-tags">
+            <span class="proj-tag">Data Engineering</span>
+            <span class="proj-tag">GIS</span>
+            <span class="proj-tag">API Integration</span>
+            <span class="proj-tag">Python Dashboard</span>
+          </div>
+          <p class="proj-result">Pełna wizualizacja struktury geoprzestrzennej sieci w kraju</p>
+        </div>
+
+        <div class="proj-card">
+          <div class="proj-img-wrap">
+            <img src="barankiewicz-dev.png" alt="barankiewicz.dev Preview" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="proj-img-placeholder" style="display:none;">barankiewicz-dev.png</div>
+          </div>
+          <p class="proj-client">Creative Frontend Engineering</p>
+          <h4><a href="https://barankiewicz.dev" target="_blank" rel="noopener">barankiewicz.dev</a></h4>
+          <p>Niniejsza strona portfolio, zaprojektowana i zakodowana z naciskiem na surową estetykę i zaawansowaną interaktywność. Zawiera autorski silnik transformacji 3D skew-panel oraz generator szumu filmowego renderowany w czasie rzeczywistym na elementach Canvas.</p>
+          <div class="proj-tags">
+            <span class="proj-tag">Vanilla HTML5</span>
+            <span class="proj-tag">CSS 3D Skew</span>
+            <span class="proj-tag">Canvas Film Grain</span>
+            <span class="proj-tag">Local Storage Sync</span>
+          </div>
+          <p class="proj-result">Wydajne, responsywne portfolio z unikalnym "Easter Eggiem"</p>
+        </div>
+
+        <div class="proj-card">
+          <div class="proj-img-wrap">
+            <img src="soundlog.png" alt="SoundLog Preview" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="proj-img-placeholder" style="display:none;">soundlog.png</div>
+          </div>
+          <p class="proj-client">Browser Extension / Local-first</p>
+          <h4><a href="https://github.com/barankiewicz/soundlog" target="_blank" rel="noopener">SoundLog</a></h4>
+          <p>Rozszerzenie do przeglądarki spajające historię odtwarzania z serwisu Last.fm z lokalną kolejką recenzji na platformie RateYourMusic. Architektura lokalna (no cloud) z synchronizacją stanu opartą na CRDT (Yjs).</p>
+          <div class="proj-tags">
+            <span class="proj-tag">Browser Extension</span>
+            <span class="proj-tag">CRDT</span>
+            <span class="proj-tag">Yjs</span>
+            <span class="proj-tag">Local Storage Ingestion</span>
+          </div>
+          <p class="proj-result">Niezależna, offline-first integracja strumieni danych muzycznych</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="work" class="page">
+    <div class="container">
+      <div class="sect-header">
+        <h2 class="sect-title">Selected Client Work</h2>
         <p class="sect-desc">End-to-end data engineering across process mining, warehousing, and analytics.</p>
       </div>
 
@@ -988,6 +1101,7 @@ footer{
         </div>
 
         <div class="proj-card">
+          <div class="proj-img-wrap" style="display:none;"></div>
           <p class="proj-client">German Food Company</p>
           <h4>Warehouse Process Mining</h4>
           <p>Implemented a Process Mining solution for pallet movement analysis in SAP EWM. Integrated primary SAP sources with custom enrichment data pipelines. Conducted hands-on training sessions for warehouse analysts and management teams.</p>
@@ -1204,7 +1318,6 @@ footer{
     html.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
     updateThemeUI();
-    // Update hero accent to match new theme (unless locked to a specific color)
     if (!themeLocked){
       html.style.setProperty('--hero-accent', next === 'dark' ? heroAccentDark : heroAccentLight);
     }
@@ -1298,7 +1411,6 @@ footer{
   var portOy = 0;
   var skewPaused = false;
   var lastTime = 0;
-  /* px per second (originally 0.25px/frame @ 60fps = 15px/s, 0.15px/frame = 9px/s) */
   var PORT_SPEED = 15;
   var MARQUEE_SPEED = 9;
   var grainFrame = 0;
@@ -1317,7 +1429,6 @@ footer{
       if (marqueeCopy) marqueeCopyW = marqueeCopy.offsetWidth;
     }
     if (reducedMotion) return;
-    /* Start marquees with original text near screen edge, copies extending both ways */
     if (portCopyW) portOffset = -(portCopyW * 0.4);
     if (marqueeCopyW) marqueeOffset = -(marqueeCopyW * 0.4);
     lastTime = performance.now();
@@ -1338,21 +1449,18 @@ footer{
     var pageOpen = document.body.classList.contains('page-open');
 
     if (!hidden){
-      /* portfolio marquee — rightward */
       if (!skewPaused){
       portOffset += PORT_SPEED * dt;
       if (portCopyW && portOffset > portCopyW) portOffset -= portCopyW;
       }
       if (portTrack) portTrack.style.transform = 'translateX(' + (portOffset + portOx) + 'px) translateY(' + portOy + 'px)';
 
-      /* name marquee — leftward */
       if (!skewPaused){
       marqueeOffset -= MARQUEE_SPEED * dt;
       if (marqueeCopyW && marqueeOffset < -marqueeCopyW) marqueeOffset += marqueeCopyW;
       }
       if (marqueeTrack) marqueeTrack.style.transform = 'translateX(' + (marqueeOffset + nameOx) + 'px)';
 
-      /* accent color cycling — ~8deg/sec, full cycle in ~45s */
       hueAccent += 8 * dt;
       if (hueAccent > 360) hueAccent -= 360;
       if (!pageOpen && !themeLocked){
@@ -1360,12 +1468,7 @@ footer{
         html.style.setProperty('--hero-accent', cur);
       }
 
-      /* grain evolution — fine 20fps, coarse ~8fps, wash ~2s */
       grainFrame++;
-      // Optimized: Only redrawing if specific triggers happen, otherwise let CSS handle the motion
-      // if (grainFrame % 3 === 0) drawGrain(currentGrainSize);
-      // if (grainFrame % 7 === 0) drawGrainCoarse(currentCoarseSize);
-      // drawWash(grainTint);
     }
 
     animId = requestAnimationFrame(animationLoop);
@@ -1531,7 +1634,6 @@ footer{
         toggleBtn.classList.remove('hidden');
       }
     });
-    // Easter Egg keyboard trigger for typing 'data'
     (function(){
       var buffer = '';
       window.addEventListener('keydown', function(e){
@@ -1582,10 +1684,6 @@ footer{
       html.style.setProperty('--skew-oy', parts[1] + '%');
       var s = readSkew(); s.axis = v; saveSkew(s);
     });
-  }
-  var pauseCb = document.getElementById('skewPause');
-  if (pauseCb){
-    pauseCb.addEventListener('change', function(){ skewPaused = this.checked; });
   }
 
   /* === VIDEO CONTROLS === */
@@ -1763,7 +1861,6 @@ footer{
   applyGrain(grainDefaults);
   syncPanelUI(grainDefaults);
 
-  // Wire grain sliders
   ['grainOp','grainSz','coarseOp','coarseSz','washOp','washTint'].forEach(function(id){
     var el = document.getElementById(id); if (!el) return;
     el.addEventListener('input', function(){
@@ -1772,7 +1869,6 @@ footer{
     });
   });
 
-  // Wire vignette sliders
   function applyVignette(){
     var vl = +document.getElementById('vigLt').value;
     var vd = +document.getElementById('vigDk').value;
@@ -1787,7 +1883,6 @@ footer{
     });
   });
 
-  // Re-apply vignette on theme change
   var themeObserver = new MutationObserver(function(){ applyVignette(); });
   themeObserver.observe(html, {attributes:true, attributeFilter:['data-theme']});
 
@@ -1804,7 +1899,6 @@ footer{
     }
   }
 
-  // Handle ALL preset button clicks (grain + nav font + color)
   document.querySelector('.skew-panel').addEventListener('click', function(e){
     var btn = e.target.closest('[data-preset]');
     if (btn) { setPreset(btn.getAttribute('data-preset')); return; }
@@ -1927,7 +2021,6 @@ footer{
       html.style.setProperty('--hero-accent', c);
       html.style.setProperty('--accent', c);
     }
-    // Re-apply snapshot of current cycling hue when unlocking to avoid jump
     if (!themeLocked && typeof hueAccent !== 'undefined'){
       var isDark = html.getAttribute('data-theme') === 'dark';
       html.style.setProperty('--hero-accent', isDark ? heroAccentDark : heroAccentLight);
@@ -1944,7 +2037,7 @@ footer{
 
   if (themeLocked) applyColorTheme(activeTheme, false);
 
-  /* === BACKGROUND COLOR (per-theme) === */
+  /* === BACKGROUND COLOR === */
   var bgPresets = {
     sage:     {bg:'#C8D5CD', surface:'#D4DFD7', surface2:'#C0CDC5', cvSurface:'#BCC9C1', border:'#A8B5AD'},
     cream:    {bg:'#F5F0E8', surface:'#FBF8F3', surface2:'#EDE6D9', cvSurface:'#E8E0D2', border:'#D5CCC0'},
@@ -2025,7 +2118,6 @@ footer{
     for (var bi = 0; bi < btns.length; bi++){
       btns[bi].classList.toggle('active', btns[bi].getAttribute('data-bg') === name);
     }
-    // Update label
     var label = document.getElementById('bgLabel');
     if (label) label.textContent = 'Background (' + (html.getAttribute('data-theme')==='dark'?'Dark':'Light') + ')';
   }
@@ -2035,15 +2127,12 @@ footer{
     setBgPreset(name, false);
   }
 
-  // Apply on load
   refreshBgUI();
 
-  // Re-apply background when theme changes
   function onThemeChangeForBg(){
     refreshBgUI();
   }
 
-  // Bind custom color input
   var bgCustomInput = document.getElementById('bgCustomColor');
   if (bgCustomInput){
     bgCustomInput.addEventListener('input', function(){
@@ -2053,14 +2142,12 @@ footer{
     });
   }
 
-  // Extend panel click handler to also handle data-bg buttons
   var panelEl = document.querySelector('.skew-panel');
   panelEl.addEventListener('click', function(e){
     var btn = e.target.closest('[data-bg]');
     if (btn) { setBgPreset(btn.getAttribute('data-bg')); }
   });
 
-  // Bind swatch clicks
   var swatchGroup = document.querySelector('.theme-swatches');
   if (swatchGroup){
     swatchGroup.addEventListener('click', function(e){
@@ -2130,7 +2217,6 @@ footer{
     var v = localStorage.getItem('_panelVersion');
     if (v == _syncVersion) return;
     _syncVersion = v;
-    loadGrain();
     skewFromStorage();
     vidFromStorage();
     var vig;
