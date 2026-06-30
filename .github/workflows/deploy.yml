@@ -20,7 +20,7 @@ jobs:
       - name: Skopiuj pliki publiczne do _site/
         run: |
           mkdir -p _site
-          cp index.html panel.html Alicja-Barankiewicz_CV_data_engineer.pdf _site/
+          cp index.html Alicja-Barankiewicz_CV_data_engineer.pdf _site/
           cp *.mp4 _site/ 2>/dev/null || true
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
