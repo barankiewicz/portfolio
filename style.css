@@ -460,6 +460,35 @@ body::before{
   color:var(--accent);
   margin-top:12px;
 }
+.proj-tagline{
+  font-size:.9em;
+  font-weight:600;
+  font-style:italic;
+  line-height:1.5;
+  color:var(--text-secondary);
+  margin-bottom:14px;
+}
+.proj-subhead{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.65rem;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--text-muted);
+  margin:20px 0 8px;
+}
+.proj-learned{
+  margin-top:6px;
+  padding-left:14px;
+  border-left:2px solid var(--accent);
+}
+.proj-learned p{
+  font-size:.78em;
+  line-height:1.6;
+  font-style:italic;
+  color:var(--text-secondary);
+  margin:0;
+}
 .proj-shot-link{
   display:block;
   text-decoration:none;
