@@ -212,7 +212,7 @@
           </a>
           <p class="proj-client">Web app</p>
           <h4><a href="https://nazwozbior.pl" target="_blank" rel="noopener">nazwozbior.pl</a></h4>
-          <p class="proj-tagline">Find the name that's really yours — searchable across every officially registered Polish name, instantly.</p>
+          <p class="proj-tagline">Find the name that's really yours - searchable across every name in Polish PESEL registry - instantly!</p>
           <p>A site dedicated for trans people who are ditching their deadnames. It gathers names from Polish PESEL registry to get a list of names that are 'officially used' in Polish administrative system and enriches them with info about the name's origin and meaning wherever possible. You can browse the names and filter/sort them with sub-second speed on most queries. No db - static site serving jsons with datasets.</p>
           <p class="proj-subhead">Tech Stack</p>
           <div class="proj-tags">
@@ -220,16 +220,13 @@
             <span class="proj-tag">JavaScript</span>
             <span class="proj-tag">Wikimedia public APIs</span>
             <span class="proj-tag">Static JSON (no DB)</span>
-          </div>
-          <p class="proj-subhead">Highlights</p>
-          <div class="proj-tags">
-            <span class="proj-tag">Web App</span>
-            <span class="proj-tag">Data quality</span>
-            <span class="proj-tag">Website performance KPIs</span>
+            <span class="proj-tag">Github Actions</span>
           </div>
           <p class="proj-subhead">What I Learned</p>
           <div class="proj-learned">
-            <p>A "proper" backend isn't always necessary — with the right static indexing, a no-DB site can outperform a database-backed one for read-heavy, rarely-changing data.</p>
+            <p>A "proper" backend isn't always necessary - with the right static indexing, a no-DB site is a genuinely useful alternative that reduces complexity for smaller datasets.</p>
+            <p>How to deploy automatically via Github Actions</p>
+            <p>How to work with python to cleanse, wrangle and join difficult data - searching for origins and meanings was a tough challenge.</p>
           </div>
           <p class="proj-result">The repo as well as the site is in Polish because of the nature of the site. Feel free to contact me if you need other languages to be implemented!</p>
         </div>
@@ -254,19 +251,20 @@
           <p>An interactive, high-performance spatial analytics platform for tracking the density, growth, and socio-economic correlations of the Żabka store network and InPost parcel lockers across Poland.</p>
           <p class="proj-subhead">Tech Stack</p>
           <div class="proj-tags">
-            <span class="proj-tag">Python</span>
-            <span class="proj-tag">GIS / Geospatial Data</span>
-            <span class="proj-tag">Public Data APIs</span>
-          </div>
-          <p class="proj-subhead">Highlights</p>
-          <div class="proj-tags">
-            <span class="proj-tag">Data Engineering</span>
-            <span class="proj-tag">API Integration</span>
-            <span class="proj-tag">Interactive Dashboard</span>
+            <span class="proj-tag">Frontend: Vite, Vanilla HTML5, Chart.js, MapLibreGL JS, Echarts, D3, Observable Plot</span>
+            <span class="proj-tag">Backend: Litestar, Uvicorn, Redis, nginx</span>
+            <span class="proj-tag">DB: DuckDB</span>
+            <span class="proj-tag">AGUS BDL API</span>
           </div>
           <p class="proj-subhead">What I Learned</p>
           <div class="proj-learned">
-            <p>The hardest part of a data project is rarely the analysis — it's reconciling datasets that were never designed to talk to each other.</p>
+            <p>I'm obsessed with Żabka</p>
+            <p>How difficult and important it is to build a fast, optimized APIs even for small datasets</p>
+            <p>How much data can be saved by bundling packages in a smart way</p>
+            <p>Data model performance optimization</p>
+            <p>Working with Redis to speed the site up</p>
+            <p>Working with JS Chart libraries</p>
+            <p>How to leverage Claude to offload boring tasks in the project - such as testing.</p>
           </div>
           <p class="proj-result">The repo as well as the site is in Polish because of the nature of the site. Feel free to contact me if you need other languages to be implemented!</p>
         </div>
@@ -285,10 +283,10 @@
               <span class="proj-visit">View Live &#8599;</span>
             </div>
           </a>
-          <p class="proj-client">Creative Frontend Engineering</p>
+          <p class="proj-client">Creative Frontend Design</p>
           <h4><a href="https://barankiewicz.dev" target="_blank" rel="noopener">barankiewicz.dev</a></h4>
-          <p class="proj-tagline">This portfolio, built from scratch with a custom 3D engine and real-time film grain — no frameworks, no shortcuts.</p>
-          <p>Niniejsza strona portfolio, zaprojektowana i zakodowana z naciskiem na surową estetykę i zaawansowaną interaktywność. Zawiera autorski silnik transformacji 3D skew-panel oraz generator szumu filmowego renderowany w czasie rzeczywistym na elementach Canvas.</p>
+          <p class="proj-tagline">This very site</p>
+          <p>This very portfolio, a very simple site that I tried to make somehow visually pleasing. na elementach Canvas.</p>
           <p class="proj-subhead">Tech Stack</p>
           <div class="proj-tags">
             <span class="proj-tag">Vanilla HTML5</span>
@@ -296,17 +294,10 @@
             <span class="proj-tag">Canvas API</span>
             <span class="proj-tag">LocalStorage</span>
           </div>
-          <p class="proj-subhead">Highlights</p>
-          <div class="proj-tags">
-            <span class="proj-tag">CSS 3D Skew</span>
-            <span class="proj-tag">Canvas Film Grain</span>
-            <span class="proj-tag">Local Storage Sync</span>
-          </div>
           <p class="proj-subhead">What I Learned</p>
           <div class="proj-learned">
-            <p>CSS 3D transforms and canvas-based noise can carry a lot of visual personality without a single external animation library.</p>
+            <p>Working with CSS 3D transforms and canvas-based noise.</p>
           </div>
-          <p class="proj-result">Wydajne, responsywne portfolio z unikalnym "Easter Eggiem"</p>
         </div>
 
         <div class="proj-card">
@@ -323,26 +314,30 @@
               <span class="proj-visit">View Repo &#8599;</span>
             </div>
           </a>
-          <p class="proj-client">Browser Extension / Local-first</p>
+          <p class="proj-client">Browser Extension / Last.fm API</p>
           <h4><a href="https://github.com/barankiewicz/soundlog" target="_blank" rel="noopener">SoundLog</a></h4>
-          <p class="proj-tagline">Your Last.fm history, minus the cloud — local-first reviews synced without a server in sight.</p>
-          <p>Rozszerzenie do przeglądarki spajające historię odtwarzania z serwisu Last.fm z lokalną kolejką recenzji na platformie RateYourMusic. Architektura lokalna (no cloud) z synchronizacją stanu opartą na CRDT (Yjs).</p>
+          <p class="proj-tagline">RYM review reminder based on your Last.fm history</p>
+          <p>A browser extension that bridges your Last.fm scrobble history with RateYourMusic reviews. It watches your listening activity, groups plays into album sessions, and builds a local review queue you can work through at your own pace.</p>
           <p class="proj-subhead">Tech Stack</p>
           <div class="proj-tags">
-            <span class="proj-tag">JavaScript</span>
-            <span class="proj-tag">Browser Extension APIs</span>
-            <span class="proj-tag">Yjs (CRDT)</span>
+            <span class="proj-tag">RxJS</span>
+            <span class="proj-tag">Custom CRDT</span>
+            <span class="proj-tag">Preact Signals</span>
+            <span class="proj-tag">Transformers.js / ONNX (all-MiniLM-L6-v2)</span>
           </div>
           <p class="proj-subhead">Highlights</p>
           <div class="proj-tags">
-            <span class="proj-tag">Local Storage Ingestion</span>
-            <span class="proj-tag">Offline-first</span>
+            <span class="proj-tag">Local MicroLLM embedding extraction to match your Last.fm history to RYM releases (optional!)</span>
+            <span class="proj-tag">RxJS stream data handling</span>
           </div>
           <p class="proj-subhead">What I Learned</p>
           <div class="proj-learned">
-            <p>Designing for local-first, no-cloud sync forces you to think about conflict resolution up front, not as an afterthought.</p>
+            <p>Working with Chrome and Firefox extension standards</p>
+            <p>Working with Last.fm API</p>
+            <p>Working with local LLM models to achieve semantic album name matching</p>
+            <p>Brushed up on classic string comparison algorithms (Levenshtein dist)</p>
           </div>
-          <p class="proj-result">Niezależna, offline-first integracja strumieni danych muzycznych</p>
+          <p class="proj-result">Still WIP! Not yet finished!!!</p>
         </div>
       </div>
     </div>
