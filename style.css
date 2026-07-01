@@ -424,7 +424,6 @@ body::before{
   font-weight:700;
   font-size:1.15em;
   letter-spacing:-.02em;
-  margin-bottom:8px;
 }
 .proj-card h4 a{
   color: inherit;
@@ -434,6 +433,28 @@ body::before{
 .proj-card h4 a:hover{
   color: var(--accent);
 }
+.proj-title-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:8px;
+}
+.proj-title-row h4{
+  margin-bottom:0;
+}
+.proj-gh-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--text-muted);
+  flex-shrink:0;
+  transition:color .2s ease,transform .2s ease;
+}
+.proj-gh-link:hover,.proj-gh-link:focus-visible{
+  color:var(--accent);
+  transform:translateY(-1px);
+}
+.proj-gh-icon{display:block}
 .proj-card p{
   font-size:.78em;
   line-height:1.6;
