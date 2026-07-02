@@ -120,7 +120,7 @@
   var portCopyW = 0, marqueeCopyW = 0;
   var portOffset = 0, marqueeOffset = 0;
   var portOx = 0, nameOx = 0, subOx = 0;
-  var portOy = 0;
+  var portOy = 0, nameOy = 0;
   var skewPaused = false;
   var lastTime = 0;
   var PORT_SPEED = 15;
@@ -166,6 +166,7 @@
       var currentPortOx = isMobile ? 0 : portOx;
       var currentPortOy = isMobile ? 0 : portOy;
       var currentNameOx = isMobile ? 0 : nameOx;
+      var currentNameOy = isMobile ? 0 : nameOy;
 
       if (!skewPaused){
       portOffset += PORT_SPEED * dt;
@@ -177,7 +178,7 @@
       marqueeOffset -= MARQUEE_SPEED * dt;
       if (marqueeCopyW && marqueeOffset < -marqueeCopyW) marqueeOffset += marqueeCopyW;
       }
-      if (marqueeTrack) marqueeTrack.style.transform = 'translateX(' + (marqueeOffset + currentNameOx) + 'px)';
+      if (marqueeTrack) marqueeTrack.style.transform = 'translateX(' + (marqueeOffset + currentNameOx) + 'px) translateY(' + currentNameOy + 'px)';
 
       hueAccent += 8 * dt;
       if (hueAccent > 360) hueAccent -= 360;
@@ -262,8 +263,8 @@
   /* === SKEW PANEL === */
   var panel = document.getElementById('skewPanel');
   var toggleBtn = document.getElementById('skewToggle');
-  var defaultsDesktop = {p:1590, y:-10.5, rx:3.5, rz:-4, z:-82, axis:'0,100', tx:90, ty:90, pox:1500, poy:161, nox:-91, sox:0};
-  var defaultsMobile = {p:1590, y:0, rx:0, rz:0, z:0, axis:'50,50', tx:0, ty:0, pox:0, poy:0, nox:0, sox:0};
+  var defaultsDesktop = {p:1590, y:-10.5, rx:3.5, rz:-4, z:-82, axis:'0,100', tx:90, ty:90, pox:1500, poy:161, nox:-91, sox:0, scale:1.00, noy:0};
+  var defaultsMobile = {p:1590, y:0, rx:0, rz:0, z:0, axis:'50,50', tx:0, ty:0, pox:0, poy:0, nox:0, sox:0, scale:1.00, noy:0};
 
   function getSkewKey(){
     return window.innerWidth <= 1024 ? 'skew_mobile' : 'skew';
@@ -280,11 +281,13 @@
     {id:'skewZ',  valId:'skewZVal',  prop:'--skew-z',  unit:'px',   fmt:'px',   key:'z'},
     {id:'skewTX', valId:'skewTXVal', prop:'--skew-tx', unit:'px',   fmt:'px',   key:'tx'},
     {id:'skewTY', valId:'skewTYVal', prop:'--skew-ty', unit:'px',   fmt:'px',   key:'ty'},
+    {id:'skewScale', valId:'skewScaleVal', prop:'--hero-scale', unit:'', fmt:'', key:'scale'},
   ];
   var textSliders = [
     {id:'skewPO',  valId:'skewPOVal',  fmt:'px', key:'pox',  set:function(v){portOx=v;}},
     {id:'skewPOY', valId:'skewPOYVal', fmt:'px', key:'poy',  set:function(v){portOy=v;}},
     {id:'skewNO',  valId:'skewNOVal',  fmt:'px', key:'nox',  set:function(v){nameOx=v;}},
+    {id:'skewNOY', valId:'skewNOYVal', fmt:'px', key:'noy',  set:function(v){nameOy=v;}},
     {id:'skewSO',  valId:'skewSOVal',  fmt:'px', key:'sox',  set:function(v){subOx=v;}},
   ];
 
@@ -583,11 +586,12 @@
       washOp:'fvWashOp',washTint:'fvWashTint',vigLt:'fvVigLt',vigDk:'fvVigDk',
       skewP:'fvSkewP',skewY:'fvSkewY',skewRX:'fvSkewRX',skewRZ:'fvSkewRZ',skewZ:'fvSkewZ',
       skewTX:'fvSkewTX',skewTY:'fvSkewTY',skewPO:'fvSkewPO',skewPOY:'fvSkewPOY',skewNO:'fvSkewNO',
+      skewNOY:'fvSkewNOY',skewScale:'fvSkewScale',
       vidX:'fvVidX',vidY:'fvVidY',vidS:'fvVidS'
     };
     var sid = map[id]; if (!sid) return;
     var span = document.getElementById(sid); if (!span) return;
-    if (id === 'vidS' || id === 'washTint') span.textContent = Number(v).toFixed(2);
+    if (id === 'vidS' || id === 'washTint' || id === 'skewScale') span.textContent = Number(v).toFixed(2);
     else if (id.indexOf('Op') > -1 || id === 'vigLt' || id === 'vigDk') span.textContent = Number(v).toFixed(3);
     else span.textContent = v;
   }

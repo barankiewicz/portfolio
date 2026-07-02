@@ -200,7 +200,7 @@ body::before{
   backface-visibility:hidden;
   will-change:transform;
   transform-origin:var(--skew-ox, 50%) var(--skew-oy, 50%);
-  transform:rotateX(var(--skew-rx, 0deg)) rotateY(var(--skew-y, -6deg)) rotateZ(var(--skew-rz, 0deg)) translateZ(var(--skew-z, 0px)) translateX(var(--skew-tx, 0px)) translateY(var(--skew-ty, 0px));
+  transform:rotateX(var(--skew-rx, 0deg)) rotateY(var(--skew-y, -6deg)) rotateZ(var(--skew-rz, 0deg)) translateZ(var(--skew-z, 0px)) translateX(var(--skew-tx, 0px)) translateY(var(--skew-ty, 0px)) scale(var(--hero-scale, 1));
 }
 .hero-intro{
   font-family:var(--hero-font, Oswald),sans-serif;
@@ -721,7 +721,7 @@ footer{
   .contact-split{gap:48px}
   footer{padding:16px 32px;font-size:.6rem}
   .hero-content{z-index:4}
-  .hero-plane{transform:none !important}
+  .skew-toggle{display:flex !important}
 }
 @media(max-width:720px){
   section{padding:80px 24px}
@@ -788,6 +788,8 @@ footer{
   opacity:0;visibility:hidden;
   transform:translateY(12px);
   transition:opacity .2s,visibility .2s,transform .2s;
+  max-height:80vh;
+  overflow-y:auto;
 }
 .skew-panel.open{opacity:1;visibility:visible;transform:translateY(0)}
 .skew-panel label{
