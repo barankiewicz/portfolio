@@ -721,6 +721,7 @@ footer{
   .contact-split{gap:48px}
   footer{padding:16px 32px;font-size:.6rem}
   .hero-content{z-index:4}
+  .hero-plane{transform:none !important}
 }
 @media(max-width:720px){
   section{padding:80px 24px}

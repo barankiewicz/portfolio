@@ -161,17 +161,22 @@
     var pageOpen = document.body.classList.contains('page-open');
 
     if (!hidden){
+      var isMobile = window.innerWidth <= 1024;
+      var currentPortOx = isMobile ? 0 : portOx;
+      var currentPortOy = isMobile ? 0 : portOy;
+      var currentNameOx = isMobile ? 0 : nameOx;
+
       if (!skewPaused){
       portOffset += PORT_SPEED * dt;
       if (portCopyW && portOffset > portCopyW) portOffset -= portCopyW;
       }
-      if (portTrack) portTrack.style.transform = 'translateX(' + (portOffset + portOx) + 'px) translateY(' + portOy + 'px)';
+      if (portTrack) portTrack.style.transform = 'translateX(' + (portOffset + currentPortOx) + 'px) translateY(' + currentPortOy + 'px)';
 
       if (!skewPaused){
       marqueeOffset -= MARQUEE_SPEED * dt;
       if (marqueeCopyW && marqueeOffset < -marqueeCopyW) marqueeOffset += marqueeCopyW;
       }
-      if (marqueeTrack) marqueeTrack.style.transform = 'translateX(' + (marqueeOffset + nameOx) + 'px)';
+      if (marqueeTrack) marqueeTrack.style.transform = 'translateX(' + (marqueeOffset + currentNameOx) + 'px)';
 
       hueAccent += 8 * dt;
       if (hueAccent > 360) hueAccent -= 360;
