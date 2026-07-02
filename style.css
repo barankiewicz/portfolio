@@ -113,9 +113,6 @@ nav > *{pointer-events:auto}
   color:var(--tone);
   letter-spacing:.05em;
 }
-.nav-brand-mobile{
-  display:none;
-}
 .nav-right{display:flex;align-items:center;gap:12px}
 .theme-toggle{
   background:none;border:none;cursor:pointer;
@@ -723,6 +720,7 @@ footer{
   .skills-grid{gap:0}
   .contact-split{gap:48px}
   footer{padding:16px 32px;font-size:.6rem}
+  .hero-content{z-index:4}
 }
 @media(max-width:720px){
   section{padding:80px 24px}
@@ -750,16 +748,6 @@ footer{
   :root{--name-x:40px;--name-y:28px;--sub-x:-20px;--sub-y:20px}
   body.page-open .hero{padding:100px 24px 32px}
   .nav-meta{display:none}
-  .nav-brand-mobile{
-    display:block;
-    font-family:var(--nav-sub-font,'JetBrains Mono',monospace);
-    font-size:0.72rem;
-    font-weight:500;
-    letter-spacing:0.08em;
-    text-transform:uppercase;
-    color:var(--tone);
-    margin-bottom:8px;
-  }
   .nav-links{gap:20px}
   .nav-links a{font-size:.7rem;letter-spacing:.1em}
   footer{padding:12px 24px;font-size:.6rem}
@@ -776,9 +764,6 @@ footer{
   .hero-name-wrap{transform:translateX(20px)}
   :root{--name-x:20px;--name-y:22px;--sub-x:0;--sub-y:16px;--nav-gap:12px}
   body.page-open .hero{padding:80px 16px 24px}
-  .nav-brand-mobile{
-    font-size:0.65rem;
-  }
   .nav-links{gap:12px}
   .nav-links a{font-size:.65rem}
   .tl-item{padding:20px}
