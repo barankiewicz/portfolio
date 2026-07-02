@@ -150,6 +150,7 @@
   function remeasure(){
     if (portTrack && portCopy) portCopyW = portCopy.offsetWidth;
     if (marqueeTrack && marqueeCopy) marqueeCopyW = marqueeCopy.offsetWidth;
+    skewFromStorage();
   }
   window.addEventListener('resize', remeasure);
 
@@ -261,7 +262,16 @@
   /* === SKEW PANEL === */
   var panel = document.getElementById('skewPanel');
   var toggleBtn = document.getElementById('skewToggle');
-  var defaults = {p:1590, y:-10.5, rx:3.5, rz:-4, z:-82, axis:'0,100', tx:90, ty:90, pox:1500, poy:161, nox:-91, sox:0};
+  var defaultsDesktop = {p:1590, y:-10.5, rx:3.5, rz:-4, z:-82, axis:'0,100', tx:90, ty:90, pox:1500, poy:161, nox:-91, sox:0};
+  var defaultsMobile = {p:1590, y:0, rx:0, rz:0, z:0, axis:'50,50', tx:0, ty:0, pox:0, poy:0, nox:0, sox:0};
+
+  function getSkewKey(){
+    return window.innerWidth <= 1024 ? 'skew_mobile' : 'skew';
+  }
+  function getSkewDefaults(){
+    return window.innerWidth <= 1024 ? defaultsMobile : defaultsDesktop;
+  }
+
   var sliderDefs = [
     {id:'skewP',  valId:'skewPVal',  prop:'--skew-p',  unit:'px',   fmt:'px',   key:'p'},
     {id:'skewY',  valId:'skewYVal',  prop:'--skew-y',  unit:'deg',  fmt:'&deg;', key:'y'},
@@ -279,9 +289,13 @@
   ];
 
   function readSkew(){
-    try { return JSON.parse(localStorage.getItem('skew') || '{}'); } catch(e){ return {}; }
+    var key = getSkewKey();
+    try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){ return {}; }
   }
-  function saveSkew(o){ localStorage.setItem('skew', JSON.stringify(o)); }
+  function saveSkew(o){
+    var key = getSkewKey();
+    localStorage.setItem(key, JSON.stringify(o));
+  }
 
   function applySkew(o){
     for (var i = 0; i < sliderDefs.length; i++){
@@ -315,6 +329,7 @@
     var s = readSkew();
     var o = {};
     var allKeys = sliderDefs.concat(textSliders);
+    var defaults = getSkewDefaults();
     for (var i = 0; i < allKeys.length; i++){
       var k = allKeys[i].key;
       o[k] = s[k] != null ? s[k] : defaults[k];
@@ -369,6 +384,7 @@
   var resetBtn = document.getElementById('skewReset');
   if (resetBtn) resetBtn.addEventListener('click', function(){
     var o = {};
+    var defaults = getSkewDefaults();
     for (var k in defaults) o[k] = defaults[k];
     for (var vk in vdefs) o[vk] = vdefs[vk];
     applySkew(o);
@@ -383,6 +399,7 @@
     updateSliderLabel('vigLt', 0.35);
     updateSliderLabel('vigDk', 0.45);
     localStorage.removeItem('skew');
+    localStorage.removeItem('skew_mobile');
     localStorage.removeItem('grain');
     localStorage.removeItem('grainPreset');
     localStorage.removeItem('vig');
