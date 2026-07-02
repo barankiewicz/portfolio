@@ -172,13 +172,25 @@
       portOffset += PORT_SPEED * dt;
       if (portCopyW && portOffset > portCopyW) portOffset -= portCopyW;
       }
-      if (portTrack) portTrack.style.transform = 'translateX(' + (portOffset + currentPortOx) + 'px) translateY(' + currentPortOy + 'px)';
+      if (portTrack) {
+        if (isMobile) {
+          portTrack.style.transform = 'translateX(' + (portOffset + currentPortOx) + 'px) translateY(' + currentPortOy + 'px)';
+        } else {
+          portTrack.style.transform = 'translateX(' + (portOffset + portOx) + 'px) translateY(' + portOy + 'px)';
+        }
+      }
 
       if (!skewPaused){
       marqueeOffset -= MARQUEE_SPEED * dt;
       if (marqueeCopyW && marqueeOffset < -marqueeCopyW) marqueeOffset += marqueeCopyW;
       }
-      if (marqueeTrack) marqueeTrack.style.transform = 'translateX(' + (marqueeOffset + currentNameOx) + 'px) translateY(' + currentNameOy + 'px)';
+      if (marqueeTrack) {
+        if (isMobile) {
+          marqueeTrack.style.transform = 'translateX(' + (marqueeOffset + currentNameOx) + 'px) translateY(' + currentNameOy + 'px)';
+        } else {
+          marqueeTrack.style.transform = 'translateX(' + (marqueeOffset + nameOx) + 'px)';
+        }
+      }
 
       hueAccent += 8 * dt;
       if (hueAccent > 360) hueAccent -= 360;
