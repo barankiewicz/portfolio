@@ -242,14 +242,30 @@
 
     function autoplay(v){
       play(v);
-      v.addEventListener('canplay', function(){ play(v); }, {once:true});
+      ['loadedmetadata','loadeddata','canplay','canplaythrough'].forEach(function(ev){
+        v.addEventListener(ev, function(){ play(v); }, {once:true});
+      });
     }
     autoplay(vf);
-    setTimeout(function(){ play(vf); }, 100);
-    setTimeout(function(){ play(vf); }, 500);
-    var events = ['click','touchstart','scroll','keydown'];
+    [50, 100, 250, 500, 1000].forEach(function(ms){
+      setTimeout(function(){ play(vf); }, ms);
+    });
+
+    var retries = 0;
+    var retryId = setInterval(function(){
+      retries++;
+      if (!vf.paused || retries > 20) { clearInterval(retryId); return; }
+      play(vf);
+    }, 250);
+
+    document.addEventListener('visibilitychange', function(){
+      if (!document.hidden) play(vf);
+    });
+
+    var events = ['click','touchstart','pointerdown','pointermove','mousemove','wheel','scroll','keydown'];
+    function kick(){ play(vf); events.forEach(function(e){ document.removeEventListener(e, kick); }); }
     events.forEach(function(e){
-      document.addEventListener(e, function(){ play(vf); }, {once:true});
+      document.addEventListener(e, kick, {passive:true});
     });
   })();
 
