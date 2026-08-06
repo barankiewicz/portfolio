@@ -6,7 +6,8 @@
   <title>Alicja Barankiewicz · Data Engineer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400&family=JetBrains+Mono:wght@400;500&family=Oswald:wght@700;900&family=Playfair+Display:wght@400;600;700&display=swap&text=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:!?()+-*/=><&%$#@[]{}|~ " rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500;600;700&family=Oswald:wght@700;900&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231A2B20'/%3E%3Cpath d='M6 25.5 16 6.5 26 25.5' fill='none' stroke='%23D32F2F' stroke-width='3.4'/%3E%3Cpath d='M10.7 19.6h10.6' fill='none' stroke='%23D32F2F' stroke-width='3.4'/%3E%3C/svg%3E" />
   <script>
   (function(){
     var t = localStorage.getItem('theme');
@@ -17,9 +18,17 @@
     } else {
       document.documentElement.setAttribute('data-theme', 'light');
     }
+    /* Redesign skin. ?skin=v1 restores the original look, ?skin=v2 the new
+       one; the choice sticks in localStorage. Remove this block and the
+       style.redesign.css link below to drop the skin entirely. */
+    var m = location.search.match(/[?&]skin=(v1|v2)/);
+    var s = m ? m[1] : (localStorage.getItem('skin') || 'v2');
+    if (m) localStorage.setItem('skin', s);
+    if (s === 'v2') document.documentElement.setAttribute('data-skin', 'v2');
   })();
   </script>
 <link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.redesign.css" />
 </head>
 <body>
 
