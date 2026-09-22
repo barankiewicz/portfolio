@@ -6,35 +6,11 @@
   <title>Alicja Barankiewicz · Data Engineer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500;600;700&family=Oswald:wght@700;900&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231A2B20'/%3E%3Cpath d='M6 25.5 16 6.5 26 25.5' fill='none' stroke='%23D32F2F' stroke-width='3.4'/%3E%3Cpath d='M10.7 19.6h10.6' fill='none' stroke='%23D32F2F' stroke-width='3.4'/%3E%3C/svg%3E" />
-  <script>
-  (function(){
-    var t = localStorage.getItem('theme');
-    if (t) {
-      document.documentElement.setAttribute('data-theme', t);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-    }
-    /* Redesign skin. ?skin=v1 restores the original look, ?skin=v2 the new
-       one; the choice sticks in localStorage. Remove this block and the
-       style.redesign.css link below to drop the skin entirely. */
-    var m = location.search.match(/[?&]skin=(v1|v2)/);
-    var s = m ? m[1] : (localStorage.getItem('skin') || 'v2');
-    if (m) localStorage.setItem('skin', s);
-    if (s === 'v2') document.documentElement.setAttribute('data-skin', 'v2');
-  })();
-  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000000'/%3E%3Cpath d='M6 25.5 16 6.5 26 25.5' fill='none' stroke='%23FFFFFF' stroke-width='3.4'/%3E%3Cpath d='M10.7 19.6h10.6' fill='none' stroke='%23FFFFFF' stroke-width='3.4'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="style.css" />
-<link rel="stylesheet" href="style.redesign.css" />
 </head>
 <body>
-
-<canvas class="film-grain" aria-hidden="true"></canvas>
-<canvas class="film-grain-coarse" aria-hidden="true"></canvas>
-<canvas class="film-grain-wash" aria-hidden="true"></canvas>
 
 <a href="#cv" class="skip-link">Skip to content</a>
 
@@ -50,41 +26,14 @@
       barankiewicz@pm.me
     </div>
   </div>
-  <div class="nav-right">
-    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" aria-pressed="false">
-      <span class="theme-icon" aria-hidden="true">&#9788;</span>
-    </button>
-  </div>
 </nav>
 
 <header>
   <section class="hero" id="home">
-    <div class="hero-noise"></div>
     <div class="hero-content">
-      <div class="hero-bottom">
-        <div class="hero-plane">
-        <div class="hero-intro">
-          <div class="portfolio-track" data-hero-colors="#1565C0,#E65100,#2E7D32,#D32F2F,#6A1B9A,#00838F,#C2185B">
-            <span>PORTFOLIO&nbsp;&nbsp;</span>
-            <span aria-hidden="true">PORTFOLIO&nbsp;&nbsp;</span>
-            <span aria-hidden="true">PORTFOLIO&nbsp;&nbsp;</span>
-            <span aria-hidden="true">PORTFOLIO&nbsp;&nbsp;</span>
-          </div>
-        </div>
-
-        <div class="hero-name-wrap">
-          <div class="marquee-track">
-            <span class="hero-name" aria-hidden="true">Alicja&nbsp;Barankiewicz&nbsp;&nbsp;</span>
-            <span class="hero-name" aria-hidden="true">Alicja&nbsp;Barankiewicz&nbsp;&nbsp;</span>
-            <h1 class="hero-name">Alicja&nbsp;Barankiewicz&nbsp;&nbsp;</h1>
-            <span class="hero-name" aria-hidden="true">Alicja&nbsp;Barankiewicz&nbsp;&nbsp;</span>
-          </div>
-        </div>
-        </div>
-      </div>
+      <p class="hero-intro">PORTFOLIO</p>
+      <h1 class="hero-name">Alicja&nbsp;Barankiewicz</h1>
     </div>
-    <video class="hero-video" src="hero-compressed.mp4" autoplay muted playsinline disablepictureinpicture preload="auto" width="640" height="360" aria-hidden="true"></video>
-<video class="hero-video hero-video--rev" src="hero-reversed.mp4" muted playsinline disablepictureinpicture preload="auto" width="640" height="360" aria-hidden="true"></video>
   </section>
 </header>
 
@@ -474,111 +423,6 @@
 <footer>
   <p>&copy; 2026 Alicja Barankiewicz. Built with vanilla HTML, CSS &amp; JavaScript.</p>
 </footer>
-
-<div class="skew-panel" id="skewPanel" aria-hidden="true">
-  <label style="margin-bottom:6px">Grain</label>
-  <div class="grain-presets">
-    <button class="grain-preset active" data-preset="off">Off</button>
-    <button class="grain-preset" data-preset="dust">Dust</button>
-    <button class="grain-preset" data-preset="grain">Grain</button>
-    <button class="grain-preset" data-preset="heavy">Heavy</button>
-    <button class="grain-preset" data-preset="cinema">Cinema</button>
-    <button class="grain-preset" data-preset="noir">Noir</button>
-    <button class="grain-preset" data-preset="warm">Warm</button>
-    <button class="grain-preset" data-preset="frost">Frost</button>
-    <button class="grain-preset" data-preset="rough">Rough</button>
-    <button class="grain-preset" data-preset="atmos">Atmos</button>
-  </div>
-  <div class="row">
-    <div class="field"><label>Fine Op <span id="fvGrainOp">0.000</span></label><input type="range" id="grainOp" min="0" max="0.18" step="0.001" value="0"></div>
-    <div class="field"><label>Fine Sz <span id="fvGrainSz">256</span></label><input type="range" id="grainSz" min="64" max="512" step="8" value="256"></div>
-    <div class="field"><label>Coarse Op <span id="fvCoarseOp">0.000</span></label><input type="range" id="coarseOp" min="0" max="0.18" step="0.001" value="0"></div>
-    <div class="field"><label>Coarse Sz <span id="fvCoarseSz">256</span></label><input type="range" id="coarseSz" min="128" max="1024" step="16" value="256"></div>
-    <div class="field"><label>Wash Op <span id="fvWashOp">0.000</span></label><input type="range" id="washOp" min="0" max="0.15" step="0.001" value="0"></div>
-    <div class="field"><label>Wash Tint <span id="fvWashTint">0.00</span></label><input type="range" id="washTint" min="0" max="0.25" step="0.005" value="0"></div>
-  </div>
-
-  <label style="margin-bottom:4px;margin-top:8px">Vignette</label>
-  <div class="row">
-    <div class="field"><label>Light <span id="fvVigLt">0.35</span></label><input type="range" id="vigLt" min="0" max="1" step="0.01" value="0.35"></div>
-    <div class="field"><label>Dark <span id="fvVigDk">0.45</span></label><input type="range" id="vigDk" min="0" max="1" step="0.01" value="0.45"></div>
-  </div>
-
-  <label style="margin-bottom:4px;margin-top:8px">Perspective</label>
-  <div class="row">
-    <div class="field"><label>Perspective <span id="fvSkewP">1590</span></label><input type="range" id="skewP" min="200" max="2000" step="10" value="1590"></div>
-    <div class="field"><label>Angle Y <span id="fvSkewY">-10.5</span></label><input type="range" id="skewY" min="-20" max="0" step="0.5" value="-10.5"></div>
-    <div class="field"><label>Angle X <span id="fvSkewRX">3.5</span></label><input type="range" id="skewRX" min="-15" max="15" step="0.5" value="3.5"></div>
-    <div class="field"><label>Angle Z <span id="fvSkewRZ">-4</span></label><input type="range" id="skewRZ" min="-10" max="10" step="0.5" value="-4"></div>
-    <div class="field"><label>Depth <span id="fvSkewZ">-82</span></label><input type="range" id="skewZ" min="-500" max="500" step="1" value="-82"></div>
-    <div class="field mobile-only-field"><label>Scale <span id="fvSkewScale">1.00</span></label><input type="range" id="skewScale" min="0.2" max="2.0" step="0.05" value="1.00"></div>
-    <div class="field"><label>Axis</label><select id="skewAxis" style="width:100%;padding:2px 4px;background:var(--surface-2);color:var(--text-primary);border:1px solid var(--border);border-radius:3px;font-family:inherit;font-size:.55rem"><option value="50,50">Center</option><option value="0,100" selected>↙ Bottom-left</option><option value="100,100">↘ Bottom-right</option><option value="50,100">↓ Bottom-center</option><option value="0,50">← Left-center</option><option value="100,50">→ Right-center</option></select></div>
-  </div>
-
-  <div class="row" style="margin-top:4px">
-    <div class="field"><label>Layer X <span id="fvSkewTX">90</span></label><input type="range" id="skewTX" min="-300" max="300" step="1" value="90"></div>
-    <div class="field"><label>Layer Y <span id="fvSkewTY">90</span></label><input type="range" id="skewTY" min="-300" max="300" step="1" value="90"></div>
-  </div>
-
-  <label style="margin-bottom:4px;margin-top:8px">Text Offsets</label>
-  <div class="row">
-    <div class="field"><label>PORTFOLIO X <span id="fvSkewPO">1500</span></label><input type="range" id="skewPO" min="-1500" max="1500" step="1" value="1500"></div>
-    <div class="field"><label>PORTFOLIO Y <span id="fvSkewPOY">161</span></label><input type="range" id="skewPOY" min="-900" max="900" step="1" value="161"></div>
-    <div class="field"><label>Name X <span id="fvSkewNO">-91</span></label><input type="range" id="skewNO" min="-1500" max="1500" step="1" value="-91"></div>
-    <div class="field mobile-only-field"><label>Name Y <span id="fvSkewNOY">0</span></label><input type="range" id="skewNOY" min="-900" max="900" step="1" value="0"></div>
-  </div>
-
-  <label style="margin-bottom:4px;margin-top:8px">Video</label>
-  <div class="row">
-    <div class="field"><label>X <span id="fvVidX">0</span></label><input type="range" id="vidX" min="-800" max="800" step="1" value="0"></div>
-    <div class="field"><label>Y <span id="fvVidY">611</span></label><input type="range" id="vidY" min="-800" max="800" step="1" value="611"></div>
-    <div class="field"><label>Scale <span id="fvVidS">1.10</span></label><input type="range" id="vidS" min="0.5" max="2" step="0.01" value="1.1"></div>
-  </div>
-
-  <label style="margin-bottom:4px;margin-top:8px">Nav Font</label>
-  <div class="grain-presets">
-    <button class="grain-preset" data-navfont="editorial">Editorial</button>
-    <button class="grain-preset active" data-navfont="swiss">Swiss</button>
-    <button class="grain-preset" data-navfont="brutal">Brutal</button>
-    <button class="grain-preset" data-navfont="display">Display</button>
-    <button class="grain-preset" data-navfont="literary">Literary</button>
-    <button class="grain-preset" data-navfont="typewriter">Typewriter</button>
-    <button class="grain-preset" data-navfont="gallery">Gallery</button>
-    <button class="grain-preset" data-navfont="minimal">Minimal</button>
-    <button class="grain-preset" data-navfont="heritage">Heritage</button>
-    <button class="grain-preset" data-navfont="mono">Mono</button>
-  </div>
-
-  <label style="margin-bottom:4px;margin-top:8px">Color</label>
-  <div class="grain-presets">
-    <button class="grain-preset active" data-theme="crimson">Crimson</button>
-    <button class="grain-preset" data-theme="cobalt">Cobalt</button>
-    <button class="grain-preset" data-theme="ochre">Ochre</button>
-    <button class="grain-preset" data-theme="emerald">Emerald</button>
-    <button class="grain-preset" data-theme="amethyst">Amethyst</button>
-    <button class="grain-preset" data-theme="teal">Teal</button>
-    <button class="grain-preset" data-theme="magenta">Magenta</button>
-    <button class="grain-preset" data-theme="auto">Auto</button>
-  </div>
-
-  <label id="bgLabel" style="margin-bottom:4px;margin-top:8px">Background</label>
-  <div class="grain-presets">
-    <button class="grain-preset active" data-bg="sage">Sage</button>
-    <button class="grain-preset" data-bg="cream">Cream</button>
-    <button class="grain-preset" data-bg="white">White</button>
-    <button class="grain-preset" data-bg="gray">Gray</button>
-    <button class="grain-preset" data-bg="charcoal">Charcoal</button>
-    <button class="grain-preset" data-bg="navy">Navy</button>
-    <button class="grain-preset" data-bg="custom">Custom</button>
-  </div>
-  <input type="color" id="bgCustomColor" value="#C8D5CD" style="width:100%;height:32px;border:1px solid var(--border);border-radius:4px;background:var(--surface-2);cursor:pointer;padding:2px;margin-top:4px;display:none;" />
-
-  <div class="actions" style="margin-top:12px">
-    <button class="btn btn-reset" id="skewReset">Reset</button>
-    <button class="btn btn-export" id="skewExport">Export</button>
-  </div>
-</div>
-<button class="skew-toggle" id="skewToggle" aria-label="Toggle controls" title="Panel">&ang;</button>
 
 <script src="script.js"></script>
 
