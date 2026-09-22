@@ -24,6 +24,10 @@
   var INTRO = 1.6;                             // whole field fades up on load
   var TILE = 4;                                // a tile is 4x4 base cells
   var SIZE_FADE = 0.9;                         // size crossfade, seconds
+  /* A 1x glyph stepping along the ramp reads as shimmer, but a 2x or 4x
+   * glyph swapping form in one frame is a pop, so large cells crossfade
+   * each glyph change. */
+  var GLYPH_FADE = 0.18;
 
   function glyphOf(v){
     if (v < THRESHOLD) return 0;
@@ -211,8 +215,9 @@
       for (var y = 0; y < tr; y++) for (var x = 0; x < tc; x++){
         var t = keep[x + ',' + y];
         if (!t){
-          t = { x: x, y: y, from: 1, to: 1, mix: 1, t0: 0 };
+          t = { x: x, y: y, from: 1, to: 1, mix: 1, t0: 0, cells: { 2: [], 4: [] } };
           t.to = t.from = sizeTarget(t);
+          for (var k = 0; k < 5; k++) t.cells[k < 4 ? 2 : 4].push({ glyph: 0, grey: 0, fromGlyph: 0, fromGrey: 0, u: 1 });
         }
         f.tiles.push(t);
       }
@@ -268,6 +273,7 @@
 
       for (i = 0; i < f.tiles.length; i++){
         var t = f.tiles[i];
+        stepLargeCells(t, dt);
         if (t.from !== t.to){
           t.mix = easeInOutSine(Math.min(1, (f.time - t.t0) / SIZE_FADE));
           if (f.time - t.t0 >= SIZE_FADE){ t.from = t.to; t.mix = 1; }
@@ -275,6 +281,26 @@
         }
         var want = sizeTarget(t);
         if (want !== t.to){ t.from = t.to; t.to = want; t.t0 = f.time; t.mix = 0; }
+      }
+    }
+
+    /* A large cell shows the brightest thing under it, and only takes a
+     * new glyph once its previous crossfade has finished. */
+    function stepLargeCells(t, dt){
+      for (var s = 2; s <= 4; s += 2){
+        var n = TILE / s;
+        for (var k = 0; k < n * n; k++){
+          var c = t.cells[s][k];
+          var x0 = t.x * TILE + (k % n) * s, y0 = t.y * TILE + Math.floor(k / n) * s, v = 0;
+          for (var y = y0; y < y0 + s && y < f.rows; y++)
+            for (var x = x0; x < x0 + s && x < f.cols; x++) v = Math.max(v, f.level[y * f.cols + x]);
+          c.u = Math.min(1, c.u + dt / GLYPH_FADE);
+          var g = glyphOf(v), gr = greyOf(v);
+          if (c.u >= 1 && (g !== c.glyph || gr !== c.grey)){
+            c.fromGlyph = c.glyph; c.fromGrey = c.grey;
+            c.glyph = g; c.grey = gr; c.u = 0;
+          }
+        }
       }
     }
 
@@ -338,28 +364,30 @@
     else field.resize(cols, rows);
   }
 
+  function blit(s, glyph, grey, x, y, alpha){
+    if (!glyph || alpha <= 0) return;
+    var a = atlas[s];
+    if (alpha !== ctx.globalAlpha) ctx.globalAlpha = alpha;
+    ctx.drawImage(a.canvas, glyph * a.w, Math.max(0, grey - DIM[s]) * a.h, a.w, a.h,
+      Math.round(x * CW * dpr), Math.round(y * CH * dpr), a.w, a.h);
+  }
+
   function drawLayer(t, s, alpha){
-    var a = atlas[s], cw = CW * dpr, ch = CH * dpr, cols = field.cols, rows = field.rows;
-    var x0 = t.x * TILE, y0 = t.y * TILE;
-    ctx.globalAlpha = alpha;
-    for (var y = y0; y < y0 + TILE && y < rows; y += s){
-      for (var x = x0; x < x0 + TILE && x < cols; x += s){
-        var gi, ci;
-        if (s === 1){
-          ci = field.glyph[y * cols + x];
-          gi = field.grey[y * cols + x];
-        } else {
-          /* A large cell shows the brightest thing under it. */
-          var v = 0;
-          for (var yy = y; yy < y + s && yy < rows; yy++)
-            for (var xx = x; xx < x + s && xx < cols; xx++) v = Math.max(v, field.level[yy * cols + xx]);
-          ci = glyphOf(v);
-          gi = greyOf(v);
+    var x0 = t.x * TILE, y0 = t.y * TILE, cols = field.cols, rows = field.rows;
+    if (s === 1){
+      for (var y = y0; y < y0 + TILE && y < rows; y++)
+        for (var x = x0; x < x0 + TILE && x < cols; x++){
+          var i = y * cols + x;
+          blit(1, field.glyph[i], field.grey[i], x, y, alpha);
         }
-        if (!ci) continue;
-        gi = Math.max(0, gi - DIM[s]);
-        ctx.drawImage(a.canvas, ci * a.w, gi * a.h, a.w, a.h, Math.round(x * cw), Math.round(y * ch), a.w, a.h);
-      }
+      return;
+    }
+    var n = TILE / s;
+    for (var k = 0; k < n * n; k++){
+      var c = t.cells[s][k], e = easeInOutSine(c.u);
+      var cx = x0 + (k % n) * s, cy = y0 + Math.floor(k / n) * s;
+      if (e < 1) blit(s, c.fromGlyph, c.fromGrey, cx, cy, alpha * (1 - e));
+      blit(s, c.glyph, c.grey, cx, cy, alpha * e);
     }
   }
 

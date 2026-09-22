@@ -90,6 +90,32 @@ test('size changes crossfade over many frames instead of swapping', () => {
   assert.ok(changes > 0, 'no tile changed size in 40s');
 });
 
+test('a large glyph crossfades into its next glyph instead of swapping in one frame', () => {
+  const field = createField(13, 192, 68, 1.6);
+  const prev = new Map();
+  let changes = 0;
+  run(field, 60 * 12, FRAME, () => {
+    field.tiles.forEach((tile, t) => {
+      for (const s of [2, 4]) {
+        tile.cells[s].forEach((c, k) => {
+          const key = `${t}:${s}:${k}`;
+          const p = prev.get(key);
+          if (p && (c.glyph !== p.glyph || c.grey !== p.grey)) {
+            changes++;
+            assert.ok(p.u > 0.9, `${key} changed glyph mid-fade at u=${p.u}`);
+            assert.equal(c.fromGlyph, p.glyph);
+            assert.equal(c.fromGrey, p.grey);
+            assert.ok(c.u < 0.2, `${key} started its fade at ${c.u}`);
+          }
+          if (p && c.u < 1 && p.u < 1) assert.ok(c.u - p.u <= 0.1 + 1e-9, `${key} fade stepped ${c.u - p.u}`);
+          prev.set(key, { glyph: c.glyph, grey: c.grey, u: c.u });
+        });
+      }
+    });
+  });
+  assert.ok(changes > 50, `only ${changes} large-glyph changes in 12s`);
+});
+
 test('at least three glyph sizes are on screen at once', () => {
   const field = createField(5, 120, 68);
   run(field, 60 * 5);
