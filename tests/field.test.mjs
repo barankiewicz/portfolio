@@ -99,7 +99,7 @@ test('at least three glyph sizes are on screen at once', () => {
 
 test('a large part of the field is quiet: most cells hold per frame, many hold for 10s', () => {
   for (const seed of [9, 21, 77]) {
-    const field = createField(seed, 137, 78);
+    const field = createField(seed, 192, 68, 1.6);
     run(field, 180);
     const start = snapshot(field);
     const moved = new Uint8Array(field.glyph.length);

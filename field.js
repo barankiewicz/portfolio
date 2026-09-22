@@ -1,7 +1,8 @@
 /* The ASCII field: weather made of characters behind the whole site.
  *
  * The model below is pure (no DOM) so node can test it; the renderer at
- * the bottom only runs in a browser. Distances are in base cells and times
+ * the bottom only runs in a browser. Cells are terminal-shaped, taller than
+ * wide; distances are in cell widths (rows scaled by the aspect) and times
  * in seconds unless a name says otherwise.
  */
 (function(){
@@ -84,11 +85,11 @@
     return {
       kind: 'wave',
       cx: rnd() * cols, cy: rnd() * rows,
-      r: 10 + rnd() * 16,
+      r: 18 + rnd() * 26,
       dx: Math.cos(a), dy: Math.sin(a),
-      k: Math.PI * 2 / (7 + rnd() * 10),
-      speed: 5 + rnd() * 6,
-      amp: 0.55 + rnd() * 0.45,
+      k: Math.PI * 2 / (10 + rnd() * 16),
+      speed: 8 + rnd() * 10,
+      amp: 0.8 + rnd() * 0.2,
       life: 7 + rnd() * 6, age: 0
     };
   }
@@ -97,8 +98,7 @@
     if (e <= 0) return;
     var r2 = m.r * m.r, shift = m.k * m.speed * m.age;
     eachInRadius(m, f, function(i, dx, dy){
-      var d2 = (dx * dx + dy * dy) / r2;
-      var mask = (1 - d2) * (1 - d2);
+      var mask = regionMask((dx * dx + dy * dy) / r2);
       var crest = 0.5 + 0.5 * Math.cos(m.k * (dx * m.dx + dy * m.dy) - shift);
       crest *= crest; crest *= crest;
       f.acc[i] *= 1 - e * mask * crest;
@@ -111,21 +111,20 @@
     return {
       kind: 'drift',
       cx: rnd() * cols, cy: rnd() * rows,
-      r: 14 + rnd() * 20,
+      r: 24 + rnd() * 32,
       vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-      scale: 0.09 + rnd() * 0.08,
-      amp: 0.35 + rnd() * 0.35,
+      scale: 0.06 + rnd() * 0.05,
+      amp: 0.45 + rnd() * 0.35,
       life: 12 + rnd() * 10, age: 0
     };
   }
   function applyDrift(m, f){
     var e = envelope(m.age / m.life) * m.amp;
     if (e <= 0) return;
-    var r2 = m.r * m.r, ox = m.vx * m.age, oy = m.vy * m.age, z = m.age * 0.12;
+    var r2 = m.r * m.r, a = f.aspect, ox = m.vx * m.age, oy = m.vy * m.age, z = m.age * 0.12;
     eachInRadius(m, f, function(i, dx, dy, x, y){
-      var d2 = (dx * dx + dy * dy) / r2;
-      var mask = (1 - d2) * (1 - d2);
-      var n = noise3(f.seed, (x - ox) * m.scale, (y - oy) * m.scale, z);
+      var mask = regionMask((dx * dx + dy * dy) / r2);
+      var n = noise3(f.seed, (x - ox) * m.scale, (y * a - oy) * m.scale, z);
       f.acc[i] *= 1 - e * mask * smoothstep(0.52, 0.85, n);
     });
   }
@@ -148,12 +147,18 @@
     f.acc[i] *= 1 - m.amp * v;
   }
 
+  /* Flat across most of the region, easing to nothing at its rim. */
+  function regionMask(d2){
+    return 1 - smoothstep(0.45, 1, Math.sqrt(d2));
+  }
+
   function eachInRadius(m, f, fn){
+    var a = f.aspect, ry = m.r / a;
     var x0 = Math.max(0, Math.floor(m.cx - m.r)), x1 = Math.min(f.cols - 1, Math.ceil(m.cx + m.r));
-    var y0 = Math.max(0, Math.floor(m.cy - m.r)), y1 = Math.min(f.rows - 1, Math.ceil(m.cy + m.r));
+    var y0 = Math.max(0, Math.floor(m.cy - ry)), y1 = Math.min(f.rows - 1, Math.ceil(m.cy + ry));
     var r2 = m.r * m.r;
     for (var y = y0; y <= y1; y++){
-      var dy = y + 0.5 - m.cy;
+      var dy = (y + 0.5 - m.cy) * a;
       for (var x = x0; x <= x1; x++){
         var dx = x + 0.5 - m.cx;
         if (dx * dx + dy * dy >= r2) continue;
@@ -164,16 +169,16 @@
 
   var MOTIFS = {
     /* mean seconds between spawns per 8000 cells, cap per 8000 cells */
-    wave:  { make: makeWave,  apply: applyWave,  every: 2.4,  cap: 3.5 },
-    drift: { make: makeDrift, apply: applyDrift, every: 4.5,  cap: 2.5 },
+    wave:  { make: makeWave,  apply: applyWave,  every: 2.4,  cap: 2.5 },
+    drift: { make: makeDrift, apply: applyDrift, every: 4.5,  cap: 2   },
     star:  { make: makeStar,  apply: applyStar,  every: 0.12, cap: 60 }
   };
 
   /* === FIELD === */
-  function createField(seed, cols, rows){
+  function createField(seed, cols, rows, aspect){
     var rnd = mulberry32(seed);
     var f = {
-      seed: seed | 0, cols: 0, rows: 0, time: 0,
+      seed: seed | 0, cols: 0, rows: 0, time: 0, aspect: aspect || 1,
       acc: null, level: null, glyph: null, grey: null,
       tiles: [], motifs: [], next: {},
       step: step, resize: resize
@@ -193,7 +198,7 @@
     /* Tile size wanders with slow noise; hysteresis keeps a tile from
      * flickering between sizes at a threshold. */
     function sizeTarget(tile){
-      var n = noise3(f.seed ^ 0x5bd1e995, tile.x * 0.3, tile.y * 0.3, f.time * 0.035);
+      var n = noise3(f.seed ^ 0x5bd1e995, tile.x * 0.3, tile.y * 0.3 * f.aspect, f.time * 0.035);
       var up = tile.to === 1 ? 0.03 : -0.03;
       if (n > 0.7 + (tile.to === 4 ? -0.03 : 0.03)) return 4;
       if (n > 0.56 + up) return 2;
@@ -298,26 +303,27 @@
   var ctx = canvas.getContext('2d');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   /* The base cell is fixed per device, not per viewport, so resizing never
-   * rescales the glyphs. */
-  var B = Math.min(screen.width, screen.height) < 720 ? 11 : 14;
+   * rescales the glyphs. Width is 0.6 of height, a monospace advance. */
+  var CH = Math.min(screen.width, screen.height) < 720 ? 13 : 16;
+  var CW = Math.round(CH * 0.6);
   var SIZES = [1, 2, 4];
-  /* Larger glyphs sit dimmer, so size reads as depth rather than weight. */
-  var DIM = { 1: 0, 2: 1, 4: 2 };
+  /* The largest glyphs sit a step dimmer, so size reads as depth. */
+  var DIM = { 1: 0, 2: 0, 4: 1 };
   var dpr = 1, atlas = {}, field = null, raf = 0, last = 0;
 
   function buildAtlas(){
     SIZES.forEach(function(s){
-      var px = Math.round(s * B * dpr);
+      var w = Math.round(s * CW * dpr), h = Math.round(s * CH * dpr);
       var c = document.createElement('canvas');
-      c.width = RAMP.length * px; c.height = GREYS.length * px;
+      c.width = RAMP.length * w; c.height = GREYS.length * h;
       var g = c.getContext('2d');
-      g.font = Math.round(px * 0.8) + 'px "JetBrains Mono", monospace';
+      g.font = Math.round(h * 0.82) + 'px "JetBrains Mono", monospace';
       g.textAlign = 'center'; g.textBaseline = 'middle';
       for (var gi = 0; gi < GREYS.length; gi++){
         g.fillStyle = 'rgb(' + GREYS[gi] + ',' + GREYS[gi] + ',' + GREYS[gi] + ')';
-        for (var ri = 1; ri < RAMP.length; ri++) g.fillText(RAMP[ri], ri * px + px / 2, gi * px + px / 2);
+        for (var ri = 1; ri < RAMP.length; ri++) g.fillText(RAMP[ri], ri * w + w / 2, gi * h + h / 2);
       }
-      atlas[s] = { canvas: c, px: px };
+      atlas[s] = { canvas: c, w: w, h: h };
     });
   }
 
@@ -326,13 +332,14 @@
     var d = Math.min(window.devicePixelRatio || 1, 2);
     if (d !== dpr || !atlas[1]){ dpr = d; buildAtlas(); }
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-    var cols = Math.ceil(w / B), rows = Math.ceil(h / B);
-    if (!field) field = createField(crypto.getRandomValues(new Uint32Array(1))[0], cols, rows);
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    var cols = Math.ceil(w / CW), rows = Math.ceil(h / CH);
+    if (!field) field = createField(crypto.getRandomValues(new Uint32Array(1))[0], cols, rows, CH / CW);
     else field.resize(cols, rows);
   }
 
   function drawLayer(t, s, alpha){
-    var a = atlas[s], px = a.px, cell = B * dpr * s, cols = field.cols, rows = field.rows;
+    var a = atlas[s], cw = CW * dpr, ch = CH * dpr, cols = field.cols, rows = field.rows;
     var x0 = t.x * TILE, y0 = t.y * TILE;
     ctx.globalAlpha = alpha;
     for (var y = y0; y < y0 + TILE && y < rows; y += s){
@@ -342,15 +349,16 @@
           ci = field.glyph[y * cols + x];
           gi = field.grey[y * cols + x];
         } else {
-          var sum = 0, cnt = 0;
+          /* A large cell shows the brightest thing under it. */
+          var v = 0;
           for (var yy = y; yy < y + s && yy < rows; yy++)
-            for (var xx = x; xx < x + s && xx < cols; xx++){ sum += field.level[yy * cols + xx]; cnt++; }
-          ci = glyphOf(sum / cnt);
-          gi = greyOf(sum / cnt);
+            for (var xx = x; xx < x + s && xx < cols; xx++) v = Math.max(v, field.level[yy * cols + xx]);
+          ci = glyphOf(v);
+          gi = greyOf(v);
         }
         if (!ci) continue;
         gi = Math.max(0, gi - DIM[s]);
-        ctx.drawImage(a.canvas, ci * px, gi * px, px, px, Math.round(x * B * dpr), Math.round(y * B * dpr), cell, cell);
+        ctx.drawImage(a.canvas, ci * a.w, gi * a.h, a.w, a.h, Math.round(x * cw), Math.round(y * ch), a.w, a.h);
       }
     }
   }
