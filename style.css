@@ -96,6 +96,7 @@ section{padding:140px 48px}
   background:var(--bg);
   position:relative;overflow:hidden;
 }
+.hero-content{margin-bottom:10vh}
 .hero-intro{
   font-family:'JetBrains Mono',monospace;
   font-size:1rem;
