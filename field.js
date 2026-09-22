@@ -203,9 +203,9 @@
      * flickering between sizes at a threshold. */
     function sizeTarget(tile){
       var n = noise3(f.seed ^ 0x5bd1e995, tile.x * 0.3, tile.y * 0.3 * f.aspect, f.time * 0.035);
-      var up = tile.to === 1 ? 0.03 : -0.03;
-      if (n > 0.7 + (tile.to === 4 ? -0.03 : 0.03)) return 4;
-      if (n > 0.56 + up) return 2;
+      var margin = 0.03;                       // harder to enter a size than to stay in it
+      if (n > (tile.to === 4 ? 0.7 - margin : 0.7 + margin)) return 4;
+      if (n > (tile.to === 1 ? 0.56 + margin : 0.56 - margin)) return 2;
       return 1;
     }
     function buildTiles(old){
@@ -417,14 +417,23 @@
     raf = 0;
   }
 
+  /* Reduced motion shows one settled frame and never starts the loop, so
+   * cells uncovered by a resize have to be settled here or stay empty. */
+  function settle(){
+    for (var k = 0; k < 150; k++) field.step(1000 / 30);
+  }
+
   function begin(){
     fit();
     /* Resizing a canvas clears it, so redraw in the same task: no frame
      * is ever painted empty. */
-    window.addEventListener('resize', function(){ fit(); draw(); });
+    window.addEventListener('resize', function(){
+      fit();
+      if (reduce) settle();
+      draw();
+    });
     if (reduce){
-      /* One settled frame, no loop. */
-      for (var k = 0; k < 150; k++) field.step(1000 / 30);
+      settle();
       draw();
       return;
     }
