@@ -2,16 +2,17 @@
  *
  * The model below is pure (no DOM) so node can test it; the renderer at
  * the bottom only runs in a browser. Cells are terminal-shaped, taller than
- * wide; distances are in cell widths (rows scaled by the aspect) and times
+ * wide, and glyphs are drawn as small pixel bitmaps; distances are in cell widths (rows scaled by the aspect) and times
  * in seconds unless a name says otherwise.
  */
 (function(){
   'use strict';
 
-  /* Density ramp, sparse to dense. Index 0 is an empty cell. */
-  var RAMP = [' ', '.', '·', ':', '-', '=', '+', '*', '#', '%', '@'];
-  /* Grey levels, dim to white. Glyph and grey both follow brightness. */
-  var GREYS = [58, 79, 102, 128, 156, 186, 219, 255];
+  /* Density ramp, sparse to dense by ink. Index 0 is an empty cell. */
+  var RAMP = [' ', '.', ':', '-', '+', '=', '*', '%', '@', '#'];
+  /* Three greys, dim to white. The glyph carries most of the density,
+   * the grey only separates faint, mid and bright. */
+  var GREYS = [96, 170, 255];
 
   var THRESHOLD = 0.05;                        // below this a cell is empty
   var GLYPH_STEP = (1 - THRESHOLD) / (RAMP.length - 1);
@@ -22,9 +23,10 @@
   var FALL = 1.4;                              // per second, 1 to 0 in 710ms
   var MAX_DT = 1 / 30;
   var INTRO = 1.6;                             // whole field fades up on load
-  var TILE = 4;                                // a tile is 4x4 base cells
-  var SIZE_FADE = 0.9;                         // size crossfade, seconds
-  /* A 1x glyph stepping along the ramp reads as shimmer, but a 2x or 4x
+  var TILE = 6;                                // a tile is 6x6 base cells
+  var SIZES = [1, 1.5, 2];                     // glyph sizes, in cells; each divides TILE
+  var SIZE_FADE = 1.4;                         // size crossfade, seconds
+  /* A 1x glyph stepping along the ramp reads as shimmer, but a larger
    * glyph swapping form in one frame is a pop, so large cells crossfade
    * each glyph change. */
   var GLYPH_FADE = 0.18;
@@ -93,7 +95,7 @@
       dx: Math.cos(a), dy: Math.sin(a),
       k: Math.PI * 2 / (10 + rnd() * 16),
       speed: 8 + rnd() * 10,
-      amp: 0.8 + rnd() * 0.2,
+      amp: 0.45 + rnd() * 0.3,
       life: 7 + rnd() * 6, age: 0
     };
   }
@@ -118,7 +120,7 @@
       r: 24 + rnd() * 32,
       vx: Math.cos(a) * v, vy: Math.sin(a) * v,
       scale: 0.06 + rnd() * 0.05,
-      amp: 0.45 + rnd() * 0.35,
+      amp: 0.3 + rnd() * 0.25,
       life: 12 + rnd() * 10, age: 0
     };
   }
@@ -138,7 +140,7 @@
     return {
       kind: 'star',
       x: Math.floor(rnd() * cols), y: Math.floor(rnd() * rows),
-      amp: 0.45 + rnd() * 0.55,
+      amp: 0.4 + rnd() * 0.4,
       life: 1.2 + rnd() * 1.4, age: 0
     };
   }
@@ -204,8 +206,8 @@
     function sizeTarget(tile){
       var n = noise3(f.seed ^ 0x5bd1e995, tile.x * 0.3, tile.y * 0.3 * f.aspect, f.time * 0.035);
       var margin = 0.03;                       // harder to enter a size than to stay in it
-      if (n > (tile.to === 4 ? 0.7 - margin : 0.7 + margin)) return 4;
-      if (n > (tile.to === 1 ? 0.56 + margin : 0.56 - margin)) return 2;
+      if (n > (tile.to === 2 ? 0.66 - margin : 0.66 + margin)) return 2;
+      if (n > (tile.to === 1 ? 0.54 + margin : 0.54 - margin)) return 1.5;
       return 1;
     }
     function buildTiles(old){
@@ -215,9 +217,12 @@
       for (var y = 0; y < tr; y++) for (var x = 0; x < tc; x++){
         var t = keep[x + ',' + y];
         if (!t){
-          t = { x: x, y: y, from: 1, to: 1, mix: 1, t0: 0, cells: { 2: [], 4: [] } };
+          t = { x: x, y: y, from: 1, to: 1, mix: 1, t0: 0, cells: {} };
           t.to = t.from = sizeTarget(t);
-          for (var k = 0; k < 5; k++) t.cells[k < 4 ? 2 : 4].push({ glyph: 0, grey: 0, fromGlyph: 0, fromGrey: 0, u: 1 });
+          for (var si = 1; si < SIZES.length; si++){
+            var cells = t.cells[SIZES[si]] = [], count = Math.pow(TILE / SIZES[si], 2);
+            for (var k = 0; k < count; k++) cells.push({ glyph: 0, grey: 0, fromGlyph: 0, fromGrey: 0, u: 1 });
+          }
         }
         f.tiles.push(t);
       }
@@ -287,13 +292,14 @@
     /* A large cell shows the brightest thing under it, and only takes a
      * new glyph once its previous crossfade has finished. */
     function stepLargeCells(t, dt){
-      for (var s = 2; s <= 4; s += 2){
-        var n = TILE / s;
+      for (var si = 1; si < SIZES.length; si++){
+        var s = SIZES[si], n = TILE / s;
         for (var k = 0; k < n * n; k++){
           var c = t.cells[s][k];
           var x0 = t.x * TILE + (k % n) * s, y0 = t.y * TILE + Math.floor(k / n) * s, v = 0;
-          for (var y = y0; y < y0 + s && y < f.rows; y++)
-            for (var x = x0; x < x0 + s && x < f.cols; x++) v = Math.max(v, f.level[y * f.cols + x]);
+          /* A 1.5x glyph straddles cells, so take every cell it overlaps. */
+          for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
+            for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) v = Math.max(v, f.level[y * f.cols + x]);
           c.u = Math.min(1, c.u + dt / GLYPH_FADE);
           var g = glyphOf(v), gr = greyOf(v);
           if (c.u >= 1 && (g !== c.glyph || gr !== c.grey)){
@@ -328,35 +334,49 @@
   if (!canvas || !canvas.getContext) return;
   var ctx = canvas.getContext('2d');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  /* The base cell is fixed per device, not per viewport, so resizing never
-   * rescales the glyphs. Width is 0.6 of height, a monospace advance. */
-  var CH = Math.min(screen.width, screen.height) < 720 ? 13 : 16;
-  var CW = Math.round(CH * 0.6);
-  var SIZES = [1, 2, 4];
-  /* The largest glyphs sit a step dimmer, so size reads as depth. */
-  var DIM = { 1: 0, 2: 0, 4: 1 };
-  var dpr = 1, atlas = {}, field = null, raf = 0, last = 0;
+  /* Glyphs are hand-drawn 5x7 pixel bitmaps in a 6x8 cell, so there is
+   * always a one-pixel gap between neighbours. A cell pixel is 2 CSS px;
+   * larger sizes are the same bitmap with chunkier pixels (3px at 1.5x,
+   * 4px at 2x). */
+  var GLYPHS = {
+    '.': ['.....', '.....', '.....', '.....', '.....', '.....', '..#..'],
+    ':': ['.....', '.....', '..#..', '.....', '.....', '..#..', '.....'],
+    '-': ['.....', '.....', '.....', '#####', '.....', '.....', '.....'],
+    '+': ['.....', '..#..', '..#..', '#####', '..#..', '..#..', '.....'],
+    '=': ['.....', '.....', '#####', '.....', '#####', '.....', '.....'],
+    '*': ['.....', '..#..', '#.#.#', '.###.', '#.#.#', '..#..', '.....'],
+    '%': ['##...', '##..#', '...#.', '..#..', '.#...', '#..##', '...##'],
+    '@': ['.###.', '#...#', '#.###', '#.#.#', '#.###', '#....', '.####'],
+    '#': ['.#.#.', '.#.#.', '#####', '.#.#.', '#####', '.#.#.', '.#.#.']
+  };
+  var GW = 6, GH = 8, PX = 2;
+  var CW = GW * PX, CH = GH * PX;
+  var atlas = null, dpr = 1, field = null, raf = 0, last = 0;
 
+  /* One row of glyphs per grey, drawn pixel by pixel: hard edges, no
+   * antialiasing, and only the three greys ever reach the canvas. */
   function buildAtlas(){
-    SIZES.forEach(function(s){
-      var w = Math.round(s * CW * dpr), h = Math.round(s * CH * dpr);
-      var c = document.createElement('canvas');
-      c.width = RAMP.length * w; c.height = GREYS.length * h;
-      var g = c.getContext('2d');
-      g.font = Math.round(h * 0.82) + 'px "JetBrains Mono", monospace';
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      for (var gi = 0; gi < GREYS.length; gi++){
-        g.fillStyle = 'rgb(' + GREYS[gi] + ',' + GREYS[gi] + ',' + GREYS[gi] + ')';
-        for (var ri = 1; ri < RAMP.length; ri++) g.fillText(RAMP[ri], ri * w + w / 2, gi * h + h / 2);
+    atlas = document.createElement('canvas');
+    atlas.width = RAMP.length * GW; atlas.height = GREYS.length * GH;
+    var g = atlas.getContext('2d'), img = g.createImageData(atlas.width, atlas.height);
+    for (var ri = 1; ri < RAMP.length; ri++){
+      var rows = GLYPHS[RAMP[ri]];
+      for (var py = 0; py < rows.length; py++) for (var px = 0; px < 5; px++){
+        if (rows[py].charAt(px) !== '#') continue;
+        for (var gi = 0; gi < GREYS.length; gi++){
+          var o = ((gi * GH + py) * atlas.width + ri * GW + px) * 4;
+          img.data[o] = img.data[o + 1] = img.data[o + 2] = GREYS[gi]; img.data[o + 3] = 255;
+        }
       }
-      atlas[s] = { canvas: c, w: w, h: h };
-    });
+    }
+    g.putImageData(img, 0, 0);
   }
 
   function fit(){
     var w = window.innerWidth, h = window.innerHeight;
     var d = Math.min(window.devicePixelRatio || 1, 2);
-    if (d !== dpr || !atlas[1]){ dpr = d; buildAtlas(); }
+    dpr = d;
+    if (!atlas) buildAtlas();
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
     var cols = Math.ceil(w / CW), rows = Math.ceil(h / CH);
@@ -366,10 +386,9 @@
 
   function blit(s, glyph, grey, x, y, alpha){
     if (!glyph || alpha <= 0) return;
-    var a = atlas[s];
     if (alpha !== ctx.globalAlpha) ctx.globalAlpha = alpha;
-    ctx.drawImage(a.canvas, glyph * a.w, Math.max(0, grey - DIM[s]) * a.h, a.w, a.h,
-      Math.round(x * CW * dpr), Math.round(y * CH * dpr), a.w, a.h);
+    ctx.drawImage(atlas, glyph * GW, grey * GH, GW, GH,
+      Math.round(x * CW * dpr), Math.round(y * CH * dpr), Math.round(s * CW * dpr), Math.round(s * CH * dpr));
   }
 
   function drawLayer(t, s, alpha){
@@ -393,6 +412,7 @@
 
   function draw(){
     ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = false;         // resizing the canvas resets it
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (var i = 0; i < field.tiles.length; i++){
       var t = field.tiles[i];
@@ -441,11 +461,5 @@
     play();
   }
 
-  /* The atlas needs the real face; fall back after a second either way. */
-  var started = false;
-  function once(){ if (!started){ started = true; begin(); } }
-  if (document.fonts && document.fonts.load){
-    document.fonts.load('16px "JetBrains Mono"').then(once, once);
-    setTimeout(once, 1000);
-  } else once();
+  begin();
 })();

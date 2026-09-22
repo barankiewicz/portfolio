@@ -96,7 +96,7 @@ test('a large glyph crossfades into its next glyph instead of swapping in one fr
   let changes = 0;
   run(field, 60 * 12, FRAME, () => {
     field.tiles.forEach((tile, t) => {
-      for (const s of [2, 4]) {
+      for (const s of [1.5, 2]) {
         tile.cells[s].forEach((c, k) => {
           const key = `${t}:${s}:${k}`;
           const p = prev.get(key);
@@ -120,20 +120,22 @@ test('at least three glyph sizes are on screen at once', () => {
   const field = createField(5, 120, 68);
   run(field, 60 * 5);
   const sizes = new Set(field.tiles.map((t) => t.to));
-  assert.deepEqual([...sizes].sort(), [1, 2, 4]);
+  assert.deepEqual([...sizes].sort(), [1, 1.5, 2]);
 });
 
-test('a large part of the field is quiet: most cells hold per frame, many hold for 10s', () => {
+test('a large part of the field is quiet: most cells dark, most hold per frame, many hold for 10s', () => {
   for (const seed of [9, 21, 77]) {
-    const field = createField(seed, 192, 68, 1.6);
+    const field = createField(seed, 160, 68, 16 / 12); // 1920x1080 in 12x16 cells
     run(field, 180);
     const start = snapshot(field);
     const moved = new Uint8Array(field.glyph.length);
     let prev = start;
     let quiet = 0;
+    let lit = 0;
     let total = 0;
     run(field, 600, FRAME, () => {
       for (let i = 0; i < field.glyph.length; i++) {
+        if (field.glyph[i]) lit++;
         if (field.glyph[i] === prev.glyph[i] && field.grey[i] === prev.grey[i]) quiet++;
         if (field.glyph[i] !== start.glyph[i]) moved[i] = 1;
         total++;
@@ -141,8 +143,9 @@ test('a large part of the field is quiet: most cells hold per frame, many hold f
       prev = snapshot(field);
     });
     const still = 1 - moved.reduce((a, b) => a + b, 0) / moved.length;
-    assert.ok(quiet / total > 0.9, `seed ${seed} quiet share ${(quiet / total).toFixed(3)}`);
-    assert.ok(still > 0.3, `seed ${seed} still for 10s ${still.toFixed(3)}`);
+    assert.ok(lit / total < 0.3, `seed ${seed} lit share ${(lit / total).toFixed(3)}`);
+    assert.ok(quiet / total > 0.95, `seed ${seed} quiet share ${(quiet / total).toFixed(3)}`);
+    assert.ok(still > 0.25, `seed ${seed} still for 10s ${still.toFixed(3)}`);
   }
 });
 
@@ -169,8 +172,9 @@ test('resize keeps the cells that are still on screen', () => {
   }
 });
 
-test('the ramps run sparse to dense and dim to white', () => {
+test('the ramps run sparse to dense and dim to white, in a few greys', () => {
   assert.equal(RAMP[0], ' ');
+  assert.ok(GREYS.length <= 3);
   assert.equal(GREYS[GREYS.length - 1], 255);
   for (let i = 1; i < GREYS.length; i++) assert.ok(GREYS[i] > GREYS[i - 1]);
 });
