@@ -2,41 +2,66 @@
  *
  * The model below is pure (no DOM) so node can test it; the renderer at
  * the bottom only runs in a browser. Cells are terminal-shaped, taller than
- * wide, and glyphs are drawn as small pixel bitmaps; distances are in cell widths (rows scaled by the aspect) and times
- * in seconds unless a name says otherwise.
+ * wide, and glyphs are drawn as small pixel bitmaps. Distances are in cell
+ * widths (rows scaled by the aspect) and times in seconds unless a name
+ * says otherwise.
  */
 (function(){
   'use strict';
 
-  /* Density ramp, sparse to dense by ink. Index 0 is an empty cell. */
-  var RAMP = [' ', '.', ':', '-', '+', '=', '*', '%', '@', '#'];
-  /* Three greys, dim to white. The glyph carries most of the density,
-   * the grey only separates faint, mid and bright. */
+  /* Three sections side by side, each with its own glyphs ordered sparse
+   * to dense by ink. A cell's tone (1-6) picks the glyph from its
+   * section's ramp; tone 0 is an empty cell. */
+  var SECTIONS = [
+    { name: 'lattice', ramp: ['.', ':', ':', '+', '*', '#'] },
+    { name: 'signal',  ramp: ['-', '=', '+', '*', '%', '#'] },
+    { name: 'dash',    ramp: ['.', '-', '-', '=', '=', '#'] }
+  ];
+  var TONES = 6;
+  /* Every glyph the field can draw; index 0 is the empty cell. */
+  var CHARS = [' '];
+  SECTIONS.forEach(function(sec){
+    sec.glyphs = sec.ramp.map(function(ch){
+      if (CHARS.indexOf(ch) < 0) CHARS.push(ch);
+      return CHARS.indexOf(ch);
+    });
+  });
+  /* Three greys, dim to white: tones 1-2, 3-4 and 5-6. */
   var GREYS = [96, 170, 255];
 
   var THRESHOLD = 0.05;                        // below this a cell is empty
-  var GLYPH_STEP = (1 - THRESHOLD) / (RAMP.length - 1);
-  /* Brightness slews at most this fast, so a cell can only climb or fall
-   * one glyph and one grey per frame, even at 30fps. That is the no-yank
-   * guarantee: every appearance starts at the sparsest, dimmest glyph. */
-  var RISE = 2.7;                              // per second, 0 to 1 in 370ms
-  var FALL = 1.4;                              // per second, 1 to 0 in 710ms
-  var MAX_DT = 1 / 30;
+  var TONE_STEP = (1 - THRESHOLD) / TONES;
+  /* The field steps at film rate, like the reference, not at the
+   * display's rate. */
+  var TICK = 1 / 24;
+  /* Brightness slews at most this fast, so a cell can only move one tone
+   * per tick (RISE * TICK < TONE_STEP). That is the no-yank guarantee:
+   * every appearance starts at its section's faintest glyph. */
+  var RISE = 3.4;                              // per second, 0 to 1 in 290ms
+  var FALL = 2;                                // per second, 1 to 0 in 500ms
+  var MAX_DT = TICK;
+  var FLICKER = 0.5;                           // lit cells jitter +-25% on each re-roll
+  var FLICKER_RATE = 24;                       // re-rolls per second of field time
+  /* The field's clock runs slow most of the time and now and then bursts
+   * ahead for a fraction of a second. Motion, borders and flicker follow
+   * the clock; the slew stays on real time, so a burst still moves each
+   * cell at most one tone per tick. */
+  var TEMPO = 0.45;
+  var BURST_GAP = [3, 7], BURST_LENGTH = [0.4, 0.8], BURST_PEAK = [2.5, 3.5];
   var INTRO = 1.6;                             // whole field fades up on load
   var TILE = 6;                                // a tile is 6x6 base cells
   var SIZES = [1, 1.5, 2];                     // glyph sizes, in cells; each divides TILE
   var SIZE_FADE = 1.4;                         // size crossfade, seconds
-  /* A 1x glyph stepping along the ramp reads as shimmer, but a larger
-   * glyph swapping form in one frame is a pop, so large cells crossfade
-   * each glyph change. */
+  /* A 1x glyph changing reads as flicker, but a larger glyph swapping
+   * form in one tick is a pop, so large cells crossfade each change. */
   var GLYPH_FADE = 0.18;
 
-  function glyphOf(v){
+  function toneOf(v){
     if (v < THRESHOLD) return 0;
-    return Math.min(RAMP.length - 1, 1 + Math.floor((v - THRESHOLD) / GLYPH_STEP));
+    return Math.min(TONES, 1 + Math.floor((v - THRESHOLD) / TONE_STEP));
   }
-  function greyOf(v){
-    return Math.min(GREYS.length - 1, Math.floor(v * GREYS.length));
+  function greyOf(tone){
+    return tone ? Math.min(GREYS.length - 1, Math.floor((tone - 1) / 2)) : 0;
   }
 
   function easeInOutSine(u){ return 0.5 - 0.5 * Math.cos(Math.PI * u); }
@@ -153,6 +178,32 @@
     f.acc[i] *= 1 - m.amp * v;
   }
 
+  /* Streak: a horizontal run that flashes on and burns out, mostly in the
+   * middle section. One or two rows tall, with gaps and ragged ends. */
+  function makeStreak(rnd, cols, rows){
+    return {
+      kind: 'streak',
+      cx: cols * (0.5 + (rnd() - 0.5) * 0.5), y: Math.floor(rnd() * rows),
+      h: rnd() < 0.3 ? 2 : 1, len: 8 + rnd() * 52,
+      amp: 0.55 + rnd() * 0.45,
+      life: 0.5 + rnd() * 1.3, age: 0,
+      id: Math.floor(rnd() * 1e9)
+    };
+  }
+  function applyStreak(m, f){
+    var u = m.age / m.life;
+    var e = m.amp * (u < 0.1 ? easeOutCubic(u / 0.1) : Math.pow(1 - (u - 0.1) / 0.9, 2));
+    var left = m.cx - m.len / 2, right = m.cx + m.len / 2;
+    var x0 = Math.max(0, Math.floor(left)), x1 = Math.min(f.cols - 1, Math.ceil(right));
+    for (var y = m.y; y < m.y + m.h && y < f.rows; y++){
+      for (var x = x0; x <= x1; x++){
+        var edge = Math.min(x - left, right - x) / 4;
+        if (hash3(m.id, x, y, 0) > Math.min(1, edge) * 0.85) continue;
+        f.acc[y * f.cols + x] *= 1 - e * (0.6 + 0.4 * hash3(m.id, x, y, 1));
+      }
+    }
+  }
+
   /* Flat across most of the region, easing to nothing at its rim. */
   function regionMask(d2){
     return 1 - smoothstep(0.45, 1, Math.sqrt(d2));
@@ -175,17 +226,19 @@
 
   var MOTIFS = {
     /* mean seconds between spawns per 8000 cells, cap per 8000 cells */
-    wave:  { make: makeWave,  apply: applyWave,  every: 2.4,  cap: 2.5 },
-    drift: { make: makeDrift, apply: applyDrift, every: 4.5,  cap: 2   },
-    star:  { make: makeStar,  apply: applyStar,  every: 0.12, cap: 60 }
+    wave:   { make: makeWave,   apply: applyWave,   every: 4,    cap: 1.2 },
+    drift:  { make: makeDrift,  apply: applyDrift,  every: 4.5,  cap: 2   },
+    star:   { make: makeStar,   apply: applyStar,   every: 0.06, cap: 90  },
+    streak: { make: makeStreak, apply: applyStreak, every: 0.04, cap: 30  }
   };
 
   /* === FIELD === */
   function createField(seed, cols, rows, aspect){
     var rnd = mulberry32(seed);
     var f = {
-      seed: seed | 0, cols: 0, rows: 0, time: 0, aspect: aspect || 1,
-      acc: null, level: null, glyph: null, grey: null,
+      seed: seed | 0, cols: 0, rows: 0, aspect: aspect || 1,
+      real: 0, time: 0, tempo: TEMPO, burst: null, nextBurst: 0, flicker: 0,
+      acc: null, level: null, tone: null, grey: null, glyph: null, section: null,
       tiles: [], motifs: [], next: {},
       step: step, resize: resize
     };
@@ -228,23 +281,77 @@
       }
     }
 
+    /* Where each section ends wanders per row and over time, and cells
+     * near a border are dithered between its two sides, so the sections
+     * flow into one another instead of meeting at a line. */
+    function assignSections(){
+      var band = 6 / f.cols, t = f.time;
+      for (var y = 0; y < f.rows; y++){
+        var ya = y * f.aspect;
+        var b1 = 0.34 + 0.2 * (noise3(f.seed ^ 0x27d4eb2d, ya * 0.05, t * 0.04, 0) - 0.5)
+                      + 0.08 * (noise3(f.seed ^ 0x27d4eb2d, ya * 0.3, t * 0.15, 1) - 0.5);
+        var b2 = 0.66 + 0.2 * (noise3(f.seed ^ 0x165667b1, ya * 0.05, t * 0.04, 0) - 0.5)
+                      + 0.08 * (noise3(f.seed ^ 0x165667b1, ya * 0.3, t * 0.15, 1) - 0.5);
+        for (var x = 0; x < f.cols; x++){
+          var u = x / f.cols, h = hash3(f.seed, x, y, 7);
+          f.section[y * f.cols + x] = h < smoothstep(-band, band, u - b2) ? 2 : h < smoothstep(-band, band, u - b1) ? 1 : 0;
+        }
+      }
+    }
+
+    /* Each section's resting texture: patches of a dim dot lattice on
+     * the left that grow and shrink, sparse dashes blinking on the right,
+     * nothing in the middle but what the motifs bring. */
+    function applyGround(){
+      var t = f.time, blink = Math.floor(t * 0.7);
+      for (var y = 0; y < f.rows; y++){
+        for (var x = 0; x < f.cols; x++){
+          var i = y * f.cols + x, sec = f.section[i];
+          if (sec === 0){
+            var n = noise3(f.seed ^ 0x3c6ef372, x * 0.05, y * f.aspect * 0.05, t * 0.05);
+            f.acc[i] *= 1 - 0.3 * smoothstep(0.5, 0.62, n);
+          } else if (sec === 2 && hash3(f.seed, x, y, blink) < 0.04){
+            f.acc[i] *= 1 - 0.25;
+          }
+        }
+      }
+    }
+
     function resize(c, r){
       var n = c * r;
-      var level = new Float32Array(n), glyph = new Uint8Array(n), grey = new Uint8Array(n);
+      var level = new Float32Array(n), tone = new Uint8Array(n), grey = new Uint8Array(n), glyph = new Uint8Array(n);
       for (var y = 0; y < Math.min(r, f.rows); y++){
         for (var x = 0; x < Math.min(c, f.cols); x++){
           var a = y * f.cols + x, b = y * c + x;
-          level[b] = f.level[a]; glyph[b] = f.glyph[a]; grey[b] = f.grey[a];
+          level[b] = f.level[a]; tone[b] = f.tone[a]; grey[b] = f.grey[a]; glyph[b] = f.glyph[a];
         }
       }
       f.cols = c; f.rows = r;
-      f.acc = new Float32Array(n); f.level = level; f.glyph = glyph; f.grey = grey;
+      f.acc = new Float32Array(n); f.section = new Uint8Array(n);
+      f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph;
       buildTiles(f.tiles);
+    }
+
+    function between(r){ return r[0] + rnd() * (r[1] - r[0]); }
+
+    /* Tempo eases up to the burst's peak over its first 30% and back down
+     * over the rest. */
+    function stepTempo(){
+      if (!f.burst && f.real >= f.nextBurst) f.burst = { t0: f.real, length: between(BURST_LENGTH), peak: between(BURST_PEAK) };
+      if (!f.burst){ f.tempo = TEMPO; return; }
+      var u = (f.real - f.burst.t0) / f.burst.length;
+      if (u >= 1){ f.burst = null; f.tempo = TEMPO; f.nextBurst = f.real + between(BURST_GAP); return; }
+      var shape = u < 0.3 ? easeInOutSine(u / 0.3) : easeInOutSine((1 - u) / 0.7);
+      f.tempo = TEMPO + (f.burst.peak - TEMPO) * shape;
     }
 
     function step(dtMs){
       var dt = Math.min(dtMs / 1000, MAX_DT);
-      f.time += dt;
+      f.real += dt;
+      stepTempo();
+      var ft = dt * f.tempo;
+      f.time += ft;
+      f.flicker += ft * FLICKER_RATE;
 
       for (var kind in MOTIFS){
         while (f.time >= f.next[kind]){
@@ -258,22 +365,29 @@
       var live = [];
       for (i = 0; i < f.motifs.length; i++){
         var m = f.motifs[i];
-        m.age += dt;
+        m.age += ft;
         if (m.age >= m.life) continue;
         MOTIFS[m.kind].apply(m, f);
         live.push(m);
       }
       f.motifs = live;
+      assignSections();
+      applyGround();
 
-      var gain = f.time < INTRO ? easeInOutSine(f.time / INTRO) : 1;
+      var gain = f.real < INTRO ? easeInOutSine(f.real / INTRO) : 1;
+      var roll = Math.floor(f.flicker);
       var rise = RISE * dt, fall = FALL * dt;
       for (i = 0; i < n; i++){
         var target = (1 - acc[i]) * gain, v = f.level[i];
+        /* Lit cells jitter every tick; the slew keeps it to one tone. */
+        if (target > THRESHOLD) target *= 1 - FLICKER / 2 + FLICKER * hash3(f.seed, i, roll, 3);
         if (target > v) v = Math.min(target, v + rise);
         else v = Math.max(target, v - fall);
+        var tone = toneOf(v);
         f.level[i] = v;
-        f.glyph[i] = glyphOf(v);
-        f.grey[i] = greyOf(v);
+        f.tone[i] = tone;
+        f.grey[i] = greyOf(tone);
+        f.glyph[i] = tone ? SECTIONS[f.section[i]].glyphs[tone - 1] : 0;
       }
 
       for (i = 0; i < f.tiles.length; i++){
@@ -301,7 +415,8 @@
           for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
             for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) v = Math.max(v, f.level[y * f.cols + x]);
           c.u = Math.min(1, c.u + dt / GLYPH_FADE);
-          var g = glyphOf(v), gr = greyOf(v);
+          var tone = toneOf(v), gr = greyOf(tone);
+          var g = tone ? SECTIONS[f.section[Math.floor(y0) * f.cols + Math.floor(x0)]].glyphs[tone - 1] : 0;
           if (c.u >= 1 && (g !== c.glyph || gr !== c.grey)){
             c.fromGlyph = c.glyph; c.fromGrey = c.grey;
             c.glyph = g; c.grey = gr; c.u = 0;
@@ -323,10 +438,11 @@
       }
       scheduleNext(kind);
     }
+    f.nextBurst = between(BURST_GAP);
     return f;
   }
 
-  var api = { createField: createField, envelope: envelope, RAMP: RAMP, GREYS: GREYS, glyphOf: glyphOf, greyOf: greyOf };
+  var api = { createField: createField, envelope: envelope, SECTIONS: SECTIONS, CHARS: CHARS, TONES: TONES, GREYS: GREYS, TICK: TICK };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER === */
@@ -346,21 +462,21 @@
     '=': ['.....', '.....', '#####', '.....', '#####', '.....', '.....'],
     '*': ['.....', '..#..', '#.#.#', '.###.', '#.#.#', '..#..', '.....'],
     '%': ['##...', '##..#', '...#.', '..#..', '.#...', '#..##', '...##'],
-    '@': ['.###.', '#...#', '#.###', '#.#.#', '#.###', '#....', '.####'],
     '#': ['.#.#.', '.#.#.', '#####', '.#.#.', '#####', '.#.#.', '.#.#.']
   };
   var GW = 6, GH = 8, PX = 2;
   var CW = GW * PX, CH = GH * PX;
-  var atlas = null, dpr = 1, field = null, raf = 0, last = 0;
+  var TICK_MS = TICK * 1000;
+  var atlas = null, dpr = 1, field = null, raf = 0, last = 0, owed = 0;
 
   /* One row of glyphs per grey, drawn pixel by pixel: hard edges, no
    * antialiasing, and only the three greys ever reach the canvas. */
   function buildAtlas(){
     atlas = document.createElement('canvas');
-    atlas.width = RAMP.length * GW; atlas.height = GREYS.length * GH;
+    atlas.width = CHARS.length * GW; atlas.height = GREYS.length * GH;
     var g = atlas.getContext('2d'), img = g.createImageData(atlas.width, atlas.height);
-    for (var ri = 1; ri < RAMP.length; ri++){
-      var rows = GLYPHS[RAMP[ri]];
+    for (var ri = 1; ri < CHARS.length; ri++){
+      var rows = GLYPHS[CHARS[ri]];
       for (var py = 0; py < rows.length; py++) for (var px = 0; px < 5; px++){
         if (rows[py].charAt(px) !== '#') continue;
         for (var gi = 0; gi < GREYS.length; gi++){
@@ -421,15 +537,21 @@
     }
   }
 
+  /* The display runs at its own rate; the field only steps and redraws
+   * once a tick is owed, so it moves on its 24fps clock. */
   function frame(now){
-    field.step(last ? now - last : 1000 / 60);
+    owed += last ? now - last : TICK_MS;
     last = now;
-    draw();
+    if (owed >= TICK_MS){
+      owed = Math.min(owed - TICK_MS, TICK_MS);
+      field.step(TICK_MS);
+      draw();
+    }
     raf = requestAnimationFrame(frame);
   }
   function play(){
     if (raf || document.hidden) return;
-    last = 0;
+    last = 0; owed = 0;
     raf = requestAnimationFrame(frame);
   }
   function pause(){
@@ -440,7 +562,7 @@
   /* Reduced motion shows one settled frame and never starts the loop, so
    * cells uncovered by a resize have to be settled here or stay empty. */
   function settle(){
-    for (var k = 0; k < 150; k++) field.step(1000 / 30);
+    for (var k = 0; k < 150; k++) field.step(TICK_MS);
   }
 
   function begin(){
