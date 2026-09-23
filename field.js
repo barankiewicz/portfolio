@@ -544,17 +544,26 @@
 
   /* Holes follow the elements marked data-cutout: "text" cuts around
    * each line of the element's text, "block" one hole round all of it,
-   * "box" round its border box (a nav link's whole touch target).
+   * "box" round its border box and its children's (the nav strip, which
+   * keeps covering the email when that is nudged out of line).
    * Measured in viewport px, handed to the model in cells. */
   var range = document.createRange(), watched = new WeakSet();
   var resizeWatch = window.ResizeObserver ? new ResizeObserver(function(){ sync(); }) : null;
+  function boxOf(el){
+    var r = el.getBoundingClientRect(), x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom, kids = el.querySelectorAll('*');
+    for (var i = 0; i < kids.length; i++){
+      var k = kids[i].getBoundingClientRect();
+      if (k.width > 0 && k.height > 0){ x0 = Math.min(x0, k.left); y0 = Math.min(y0, k.top); x1 = Math.max(x1, k.right); y1 = Math.max(y1, k.bottom); }
+    }
+    return { left: x0, top: y0, right: x1, bottom: y1, width: x1 - x0, height: y1 - y0 };
+  }
   function measure(){
     var els = document.querySelectorAll('[data-cutout]'), out = [];
     for (var i = 0; i < els.length; i++){
       var el = els[i], rects;
       if (resizeWatch && !watched.has(el)){ resizeWatch.observe(el); watched.add(el); }
       var mode = el.getAttribute('data-cutout');
-      if (mode === 'box') rects = [el.getBoundingClientRect()];
+      if (mode === 'box') rects = [boxOf(el)];
       else { range.selectNodeContents(el); rects = mode === 'block' ? [range.getBoundingClientRect()] : range.getClientRects(); }
       for (var k = 0; k < rects.length; k++){
         var r = rects[k];

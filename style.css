@@ -48,6 +48,8 @@
   --nav-case: uppercase;
   --nav-justify: flex-start;
   --nav-top: 44;              /* px */
+  --nav-x: 0;                 /* px, nudges the whole nav sideways */
+  --meta-x: 0;                /* px, nudges the email sideways */
 }
 
 /* === RESET === */
@@ -111,7 +113,7 @@ nav{
   pointer-events:none;
 }
 nav > *{pointer-events:auto}
-.nav-left{display:flex;flex-direction:column;align-items:var(--nav-justify);gap:2px}
+.nav-left{display:flex;flex-direction:column;align-items:var(--nav-justify);gap:2px;transform:translateX(calc(var(--nav-x) * 1px))}
 .nav-links{display:flex;flex-wrap:wrap;justify-content:var(--nav-justify);gap:calc(var(--nav-gap) * 1px)}
 .nav-links a{
   display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;
@@ -132,6 +134,7 @@ nav > *{pointer-events:auto}
   font-size:calc(var(--nav-size) * .9rem);
   letter-spacing:.04em;
   color:var(--text-muted);
+  transform:translateX(calc(var(--meta-x) * 1px));
 }
 nav.scrolled{
   background:var(--bg);
