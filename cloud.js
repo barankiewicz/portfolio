@@ -148,12 +148,18 @@
   var hero = document.querySelector('.hero'), home = canvas.parentNode, away = document.body;
   var frames = [], cells = null, count = 0, ready = false;
 
+  /* The whole file is fetched first and seeked in memory: a server
+   * without range requests leaves a streamed video unseekable, and every
+   * seek would land back on frame 0. */
   function decodeFrames(){
     var v = document.createElement('video');
     v.muted = true; v.playsInline = true; v.preload = 'auto';
-    v.src = canvas.getAttribute('data-src');
     function once(ev){ return new Promise(function(ok, fail){ v.addEventListener(ev, ok, { once: true }); v.addEventListener('error', fail, { once: true }); }); }
-    return once('loadeddata').then(function(){
+    return fetch(canvas.getAttribute('data-src')).then(function(r){ return r.blob(); }).then(function(blob){
+      var loaded = once('loadeddata');
+      v.src = URL.createObjectURL(blob);
+      return loaded;
+    }).then(function(){
       var n = reduce ? 1 : Math.round(v.duration * FPS), w = Math.min(v.videoWidth, Math.ceil(canvas.getBoundingClientRect().width * dpr() * 1.5) || v.videoWidth);
       var opts = { resizeWidth: w, resizeHeight: Math.round(w * v.videoHeight / v.videoWidth), resizeQuality: 'high' };
       /* One seek at a time, to the middle of each frame. */
@@ -163,7 +169,7 @@
         v.currentTime = (i + 0.5) / FPS;
         return seeked.then(function(){ return createImageBitmap(v, opts); }).then(function(b){ frames.push(b); return grab(i + 1); });
       }
-      return grab(0);
+      return grab(0).then(function(f){ URL.revokeObjectURL(v.src); v.removeAttribute('src'); v.load(); return f; });
     });
   }
   /* cloud-cells.bin is gzipped; a server may already have unzipped it. */
@@ -239,7 +245,10 @@
     var n = frames.length, k = Math.floor(ms * FPS / 1000) % Math.max(1, 2 * (n - 1));
     return k < n ? k : 2 * (n - 1) - k;
   }
-  function schedule(from){ nextAt = from + glitchGap(Math.random, PARAMS); }
+  /* The wait is re-rolled if the gap params change while it runs, so
+   * the tuning page's gap sliders take effect at once. */
+  var gapFrom = 0, gapKey = '';
+  function schedule(from){ gapFrom = from; gapKey = PARAMS.gapMin + ',' + PARAMS.gapMax; nextAt = from + glitchGap(Math.random, PARAMS); }
   function startEpisode(at){
     episode = planEpisode(Math.random, PARAMS).map(function(g){ return { at: at + g.at, len: g.len }; });
     glitch = null;
@@ -253,6 +262,7 @@
       drawTake(frameAt(clock));
     }
     if (!glitch){
+      if (PARAMS.gapMin + ',' + PARAMS.gapMax !== gapKey) schedule(gapFrom);
       if (!episode.length && clock >= nextAt) startEpisode(clock);
       return;
     }
