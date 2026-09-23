@@ -16,6 +16,7 @@
    * Placement is CSS (--cloud-* on :root) and the hole's pad, rag and
    * fill are attributes on the canvas; everything else is here. */
   var DEFAULTS = {
+    mode: 'glitch',                            // 'glitch': video, glitching into the take; 'blend': seen through the field
     gapMin: 2, gapMax: 4,                       // s between glitches
     lenMin: 0.5, lenMax: 2.9,                   // s a glitch lasts
     lenSkew: 3.7,                              // above 1 most glitches are short
@@ -28,7 +29,18 @@
     toneLow: 0.39, toneHigh: 0.76,               // the brightness span the ramp is spread over
     boost: 1.35,                               // saturation and brightness lift, since glyphs on black read darker
     routes: 'all',                             // 'home': the clip leaves with the hero; 'all': it stays on every route
-    dim: false                                 // with routes 'all', dim it while a page is open
+    dim: false,                                // with routes 'all', dim it while a page is open
+    /* Field blend: where the field over the clip is lit above the
+     * threshold tone its glyphs take the video's colour, at or below
+     * it the video shows. */
+    blendThreshold: 1,                         // this tone and under shows video
+    backdrop: 'dim',                           // behind a lit glyph: 'dim' (video dimmed by tone) or 'fade' (crossfade to black)
+    dimCurve: 1,                               // above 1 the video darkens sooner as tones rise
+    fadeTime: 0.3,                             // s a cell takes to crossfade, with backdrop 'fade'
+    tint: 'cell',                              // 'cell': one flat colour per cell; 'pixel': the video through the glyph
+    edgeReach: 0,                              // cells past the box the colour reaches, 0 a hard edge
+    edgeFalloff: 1,                            // above 1 the colour drops off sooner
+    blendIn: 0.6                               // s the blend takes to come in
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
@@ -130,7 +142,40 @@
     return c.map(function(ch){ var u = mx > mn ? (mx - ch) / (mx - mn) : 0; return v * (1 - s * u); });
   }
 
-  var api = { DEFAULTS: DEFAULTS, PARAMS: PARAMS, glitchGap: glitchGap, glitchLength: glitchLength, planEpisode: planEpisode, planSwap: planSwap, stepSwap: stepSwap, coverRects: coverRects, cellMean: cellMean, toneOf: toneOf, boost: boost };
+  /* === FIELD BLEND ===
+   * Per cell of the clip's box, from the field's tone there. A cell
+   * above the threshold shows its field glyph in the video's colour; at
+   * or below it shows the video. */
+  function blendShows(tone, P){ return tone > P.blendThreshold; }
+  /* Dim by tone: how much video stays behind a cell, 1 at or below the
+   * threshold, one step less for each tone above it, near black at 6.
+   * The field moves a cell one tone per tick, so this moves one step
+   * per tick. */
+  function blendBackdrop(tone, P){
+    if (!blendShows(tone, P)) return 1;
+    return Math.pow(1 - (tone - P.blendThreshold) / (TONES - P.blendThreshold + 1), P.dimCurve);
+  }
+  /* Crossfade: how far a cell is from video (0) to glyph on black (1),
+   * moving toward where its tone says over fadeTime. */
+  function blendFade(u, ascii, dtMs, P){
+    var d = dtMs / (1000 * P.fadeTime);
+    return ascii ? Math.min(1, u + d) : Math.max(0, u - d);
+  }
+  /* How many cells (c, r) lies outside a box of cols x rows cells, from
+   * the nearest cell of the box; 0 inside. */
+  function edgeDistance(c, r, cols, rows){
+    var dx = c < 0 ? -c : c >= cols ? c - cols + 1 : 0, dy = r < 0 ? -r : r >= rows ? r - rows + 1 : 0;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  /* How much of the nearest edge cell's colour a glyph that far out
+   * takes: all of it inside, none at edgeReach and beyond. */
+  function edgeWeight(d, P){
+    if (d <= 0) return 1;
+    if (d >= P.edgeReach) return 0;
+    return Math.pow(1 - d / P.edgeReach, P.edgeFalloff);
+  }
+
+  var api = { DEFAULTS: DEFAULTS, PARAMS: PARAMS, glitchGap: glitchGap, glitchLength: glitchLength, planEpisode: planEpisode, planSwap: planSwap, stepSwap: stepSwap, coverRects: coverRects, cellMean: cellMean, toneOf: toneOf, boost: boost, blendShows: blendShows, blendBackdrop: blendBackdrop, blendFade: blendFade, edgeDistance: edgeDistance, edgeWeight: edgeWeight };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER ===

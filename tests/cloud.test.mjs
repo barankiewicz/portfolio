@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { mulberry32, TONES } = require('../field.js');
-const { DEFAULTS, glitchGap, glitchLength, planEpisode, planSwap, stepSwap, coverRects, cellMean, toneOf, boost } = require('../cloud.js');
+const { mulberry32, TONES, createField } = require('../field.js');
+const { DEFAULTS, glitchGap, glitchLength, planEpisode, planSwap, stepSwap, coverRects, cellMean, toneOf, boost, blendShows, blendBackdrop, blendFade, edgeDistance, edgeWeight } = require('../cloud.js');
 
 const P = (over) => ({ ...DEFAULTS, ...over });
 
@@ -140,4 +140,84 @@ test('the colour boost lifts saturation and brightness, keeps the hue, and stays
   assert.ok(b[2] > b[1] && b[1] > b[0], 'hue order changed');
   assert.deepEqual(boost(sky, 0).map(Math.round), sky);
   assert.deepEqual(boost([250, 250, 250], 1).map(Math.round), [255, 255, 255]);
+});
+
+test('field blend: a cell at or below the threshold shows video, above it ASCII, for every threshold', () => {
+  for (let thr = 0; thr <= TONES; thr++)
+    for (let tone = 0; tone <= TONES; tone++)
+      assert.equal(blendShows(tone, P({ blendThreshold: thr })), tone > thr, `tone ${tone}, threshold ${thr}`);
+});
+
+test('field blend, dim by tone: full video at or below the threshold, darker with every tone above it', () => {
+  for (let thr = 0; thr < TONES; thr++) for (const dimCurve of [0.5, 1, 2]) {
+    const p = P({ blendThreshold: thr, dimCurve });
+    for (let tone = 0; tone <= thr; tone++) assert.equal(blendBackdrop(tone, p), 1);
+    for (let tone = thr + 1; tone <= TONES; tone++) {
+      const b = blendBackdrop(tone, p);
+      assert.ok(b < blendBackdrop(tone - 1, p), `tone ${tone} is not darker than ${tone - 1}`);
+      assert.ok(b >= 0 && b <= 1);
+    }
+  }
+  const p = P({ blendThreshold: 1, dimCurve: 1 });
+  assert.ok(blendBackdrop(2, p) >= 0.8, 'the first ASCII tone is not near full');
+  assert.ok(blendBackdrop(TONES, p) <= 0.2, 'tone 6 is not near black');
+});
+
+/* The field is what moves a cell one tone per tick; the backdrop only
+ * has to follow, so on a real run it may only move to a neighbouring
+ * tone's level. */
+test('field blend: on a running field the backdrop moves at most one step per tick, in both backdrop modes', () => {
+  const f = createField(7, 40, 20, 4 / 3), p = P({ blendThreshold: 1 }), tick = 100;
+  const u = new Float32Array(f.tone.length);
+  let prev = Array.from(f.tone), crossings = 0;
+  for (let k = 0; k < 300; k++) {
+    f.step(tick);
+    for (let i = 0; i < f.tone.length; i++) {
+      const a = prev[i], b = f.tone[i];
+      assert.ok(Math.abs(a - b) <= 1, `cell ${i} jumped ${a} -> ${b}`);
+      const levels = [a - 1, a, a + 1].filter((t) => t >= 0 && t <= TONES).map((t) => blendBackdrop(t, p));
+      assert.ok(levels.includes(blendBackdrop(b, p)), `dim backdrop skipped a step at cell ${i}`);
+      const was = u[i], ascii = blendShows(b, p);
+      u[i] = blendFade(was, ascii, tick, p);
+      assert.ok(Math.abs(u[i] - was) <= tick / (p.fadeTime * 1000) + 1e-6, 'crossfade moved more than one step');
+      if (blendShows(a, p) !== ascii) crossings++;
+    }
+    prev = Array.from(f.tone);
+  }
+  assert.ok(crossings > 50, `only ${crossings} threshold crossings, the run proves nothing`);
+});
+
+test('field blend, crossfade: a cell reaches the glyph and comes back to video in about fadeTime', () => {
+  const p = P({ fadeTime: 0.3 });
+  let u = 0, n = 0;
+  while (u < 1 && n < 100) { u = blendFade(u, true, 16, p); n++; }
+  assert.ok(Math.abs(n * 16 - 300) <= 16, `took ${n * 16}ms`);
+  assert.equal(blendFade(0.5, false, 150, p), 0);
+  assert.equal(blendFade(0, false, 16, p), 0);
+});
+
+test('edge distance: 0 inside the box, cells counted outward from the nearest box cell', () => {
+  assert.equal(edgeDistance(0, 0, 10, 5), 0);
+  assert.equal(edgeDistance(9, 4, 10, 5), 0);
+  assert.equal(edgeDistance(-1, 2, 10, 5), 1);
+  assert.equal(edgeDistance(12, 2, 10, 5), 3);
+  assert.equal(edgeDistance(3, -2, 10, 5), 2);
+  assert.equal(edgeDistance(-3, -4, 10, 5), 5);
+});
+
+test('edge weight: 1 inside, 0 at and past the reach, never rising with distance; reach 0 is a hard edge', () => {
+  for (const edgeReach of [0, 1, 2.5, 4, 10]) for (const edgeFalloff of [0.3, 1, 3]) {
+    const p = P({ edgeReach, edgeFalloff });
+    assert.equal(edgeWeight(0, p), 1);
+    let was = 1;
+    for (let d = 0; d <= 20; d += 0.25) {
+      const w = edgeWeight(d, p);
+      assert.ok(w <= was, `weight rose at ${d} (reach ${edgeReach})`);
+      assert.ok(w >= 0 && w <= 1);
+      if (d >= edgeReach && d > 0) assert.equal(w, 0, `weight ${w} at ${d}, reach ${edgeReach}`);
+      was = w;
+    }
+    if (edgeReach > 1) assert.ok(edgeWeight(1, p) > 0, 'reach above 1 colours nothing outside');
+  }
+  assert.equal(edgeWeight(0.5, P({ edgeReach: 0 })), 0);
 });
