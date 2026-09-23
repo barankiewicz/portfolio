@@ -212,13 +212,6 @@ nav > *{pointer-events:auto}
   padding-block:.3em;margin-block:-.3em;
 }
 
-/* First paint: the text fades up with the field once its faces are in
-   (script.js sets .fonts-ready), so nothing appears at full opacity in
-   one frame and the fallback font is never seen. The curve is the
-   field's own intro ease. */
-.js .nav-left,.js .hero-content{opacity:0;transition:opacity 1.6s cubic-bezier(.37,0,.63,1)}
-.js.fonts-ready .nav-left,.js.fonts-ready .hero-content{opacity:1}
-
 /* === CLOUD CLIP ===
    The one thing in colour (PRODUCT.md). A canvas cloud.js draws, in its
    own hole; its edges sit on the field's cell grid, so the ASCII take's
@@ -448,7 +441,6 @@ body.page-open .cloud.everywhere.dim.open{opacity:.35}
     --cut var(--sweep) linear calc(var(--i, 0) * var(--stagger)),
     --txt var(--sweep) linear calc(var(--i, 0) * var(--stagger) + var(--lag));
 }
-.js.no-sweep [data-sweep],.js.no-sweep [data-sweep].open{transition:none}
 
 /* === FOOTER === */
 footer{
@@ -470,7 +462,7 @@ footer{
    Holes and text are simply there; routes swap with no sweep. */
 @media (prefers-reduced-motion: reduce){
   .js [data-sweep]{--cut:1;--txt:1;transition:none;-webkit-mask:none;mask:none}
-  .js .nav-left,.js .hero-content,.proj-dither,.js .cloud[data-sweep],.js .cloud[data-sweep].open{transition:none}
+  .proj-dither,.js .cloud[data-sweep],.js .cloud[data-sweep].open{transition:none}
 }
 
 /* === RESPONSIVE === */

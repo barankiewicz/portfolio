@@ -137,19 +137,21 @@
   window.addEventListener('hashchange', route);
 
   /* === INIT ===
-   * Text fades in once its faces have arrived, so the fallback font is
-   * never seen swapping. Reading layout first makes the browser start
-   * the font requests, which fonts.ready then waits for. The hero on
-   * first load keeps 04's fade with the field rather than sweeping. */
-  root.classList.add('no-sweep');
-  if (scopeFor(location.hash.slice(1) || 'home') === hero){
-    var lines = strata(hero);
-    for (var s = 0; s < lines.length; s++) lines[s].classList.add('open');
-  }
+   * The first screen arrives the way every route does: the nav, then the
+   * route's blocks, tear open in scanline bands once their faces are in,
+   * so the fallback font is never seen. Reading layout first makes the
+   * browser start the font requests, which fonts.ready then waits for.
+   * The nav only sweeps this once, so it drops its sweep when open: its
+   * mask would clip the links' focus rings. */
+  navLeft.addEventListener('transitionend', function done(e){
+    if (e.target !== navLeft || e.propertyName !== '--txt') return;
+    navLeft.removeEventListener('transitionend', done);
+    navLeft.removeAttribute('data-sweep');
+    ['maskImage', 'maskSize', 'maskPosition', 'maskRepeat', 'webkitMaskImage', 'webkitMaskSize', 'webkitMaskPosition', 'webkitMaskRepeat'].forEach(function(k){ navLeft.style[k] = ''; });
+  });
   void document.body.offsetWidth;
-  requestAnimationFrame(function(){ requestAnimationFrame(function(){ root.classList.remove('no-sweep'); }); });
   document.fonts.ready.then(function(){
-    root.classList.add('fonts-ready');
+    open(navLeft);
     route();
   });
 })();
