@@ -121,7 +121,12 @@ test('the borders wander over time', () => {
   assert.ok(changed / before.length > 0.02, `only ${changed} cells changed section in 60s`);
 });
 
-test('neighbouring cells move together: the pattern is a surface, not noise', () => {
+// The surface tests run at ticket 02's pattern settings: a finer tuned
+// default (the right section's cells at 0.4 read as grain, on purpose)
+// would measure the tuning, not the model.
+const SURFACE = { scales: [0.065, 0.26, 0.11], cellJitter: 0.33, maskScale: 0.115 };
+
+test('neighbouring cells move together: the pattern is a surface, not noise', () => withParams(SURFACE, () => {
   const field = createField(21, 160, 68, ASPECT);
   run(field, 10 * SECOND);
   let same = 0;
@@ -135,7 +140,7 @@ test('neighbouring cells move together: the pattern is a surface, not noise', ()
     }
   }
   assert.ok(same / pairs > 0.58, `only ${(same / pairs).toFixed(2)} of lit neighbours are close in brightness`);
-});
+}));
 
 test('size changes crossfade over many ticks instead of swapping', () => {
   const field = createField(11, 120, 68, ASPECT);
@@ -199,8 +204,8 @@ test('the size amounts decide how much of the field draws large', () => {
 test('dither mixes neighbouring glyphs in smooth gradients', () => {
   // Measured on a soft setting: at high contrast neighbours already differ
   // almost everywhere, so there is no banding for dither to break up.
-  const saved = { dither: PARAMS.dither, contrast: PARAMS.contrast, gain: PARAMS.gain };
-  Object.assign(PARAMS, { contrast: 1, gain: 1 });
+  const saved = { dither: PARAMS.dither, contrast: PARAMS.contrast, gain: PARAMS.gain, scales: PARAMS.scales, cellJitter: PARAMS.cellJitter, maskScale: PARAMS.maskScale };
+  Object.assign(PARAMS, { contrast: 1, gain: 1 }, SURFACE);
   const distinct = () => {
     const f = createField(21, 160, 68, ASPECT);
     run(f, 5 * SECOND);

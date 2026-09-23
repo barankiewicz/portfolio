@@ -31,12 +31,12 @@
     gain: 1.8,                                 // overall brightness
     contrast: 2.45,                            // around mid grey; above 1 sharpens
     patterns: ['waves', 'waves', 'cells'],
-    scales: [0.065, 0.26, 0.11],
+    scales: [0.065, 0.26, 0.4],
     ramps: [['·', '∘', '○', '░', '▒', '▓'], ['.', 'x', 'y', '#', '▞', '▓'], ['.', ',', '+', '*', '0', '1']],
     /* waveHigh below waveLow inverts the waves: the troughs glow. */
     waveSpeed: 0.9, ringWeight: 3, ringSpeed: 2.25, waveLow: 0.42, waveHigh: 0.07,
-    cellJitter: 0.33, cellSpeed: 1.55, cellLow: 0.21, cellHigh: 1,
-    maskScale: 0.115, maskSpeed: 0.04, maskLow: 0.35, maskHigh: 0.68,
+    cellJitter: 0.5, cellSpeed: 1.55, cellLow: 0.21, cellHigh: 1,
+    maskScale: 0.15, maskSpeed: 0.04, maskLow: 0.35, maskHigh: 0.68,
     border1: 0.31, border2: 0.74, borderWobble: 0.29, borderJag: 0.19, borderBand: 16, borderSpeed: 0.09,
     pixel: 2,                                  // CSS px per glyph pixel; a cell is 6x8 glyph pixels
     midSize: 1.5, bigSize: 2,                  // the two larger sizes, from LARGE
