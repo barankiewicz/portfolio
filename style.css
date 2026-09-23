@@ -28,7 +28,7 @@
   --hero-weight: 500;
   --hero-vw: 12.5;            /* size in vw, between 1.5rem and --hero-max */
   --hero-max: 10;             /* rem */
-  --hero-fit: 9.3;            /* the name's width in em, so it never outgrows the gutters */
+  --hero-fit: 9.35;           /* the name's width in em, so it never outgrows the gutters */
   --hero-track: .01;          /* em */
   --hero-leading: .7;
   --hero-case: none;
@@ -37,10 +37,10 @@
   --hero-align: center;
   --hero-top: 120px;          /* space kept clear for the nav */
   --intro-size: 1.1;          /* rem */
-  --intro-track: 0;           /* em */
-  --intro-gap: 0;             /* px between PORTFOLIO and the name */
-  --intro-align: center;      /* PORTFOLIO against the name's width */
-  --intro-x: 0;               /* px, nudges PORTFOLIO sideways */
+  --intro-track: .13;         /* em */
+  --intro-gap: 14;            /* px between PORTFOLIO and the name */
+  --intro-align: left;        /* PORTFOLIO against the name's width */
+  --intro-x: -48;             /* px, nudges PORTFOLIO sideways */
   --nav-size: 1.15;           /* rem */
   --nav-track: .23;           /* em */
   --nav-gap: 17;              /* px between links */
@@ -48,8 +48,8 @@
   --nav-case: uppercase;
   --nav-justify: flex-start;
   --nav-top: 44;              /* px */
-  --nav-x: 0;                 /* px, nudges the whole nav sideways */
-  --meta-x: 0;                /* px, nudges the email sideways */
+  --nav-x: 73;                /* px, nudges the whole nav sideways */
+  --meta-x: -27;              /* px, nudges the email sideways */
 }
 
 /* === RESET === */
@@ -108,12 +108,14 @@ body.page-open .field{opacity:.35}
    selection, focus draws the outline. */
 nav{
   position:fixed;top:0;left:0;right:0;z-index:100;
-  padding:calc(var(--nav-top) * 1px) var(--edge);
+  /* --nav-x moves where the nav starts, so the links wrap inside what is
+     left of the width instead of being pushed off the right edge */
+  padding:calc(var(--nav-top) * 1px) var(--edge) calc(var(--nav-top) * 1px) calc(var(--edge) + var(--nav-x) * 1px);
   display:flex;align-items:flex-start;justify-content:var(--nav-justify);
   pointer-events:none;
 }
 nav > *{pointer-events:auto}
-.nav-left{display:flex;flex-direction:column;align-items:var(--nav-justify);gap:2px;transform:translateX(calc(var(--nav-x) * 1px))}
+.nav-left{display:flex;flex-direction:column;align-items:var(--nav-justify);gap:2px}
 .nav-links{display:flex;flex-wrap:wrap;justify-content:var(--nav-justify);gap:calc(var(--nav-gap) * 1px)}
 .nav-links a{
   display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;
@@ -151,8 +153,8 @@ section{padding:140px 48px}
 }
 /* Anchored by --hero-x/--hero-y: the same share of the hero's own size
    is pulled back, so 0 sits flush left or top and 100 flush right or
-   bottom. One hole covers both lines' text (data-cutout="block"), so
-   nudging PORTFOLIO sideways grows the hole with it. */
+   bottom. Each line cuts its own hole round its text, so a nudged
+   PORTFOLIO takes its hole with it. */
 .hero-content{
   position:absolute;
   left:calc(var(--edge) + (100% - 2 * var(--edge)) * var(--hero-x) / 100);
@@ -168,7 +170,9 @@ section{padding:140px 48px}
   color:var(--text-muted);
   margin-bottom:calc(var(--intro-gap) * 1px);
   text-align:var(--intro-align);
-  transform:translateX(calc(var(--intro-x) * 1px));
+  /* never further left than the side gutter, so it can sit flush with
+     the screen edge but not run off it */
+  transform:translateX(max(calc(var(--intro-x) * 1px), -1 * var(--edge)));
 }
 .hero-name{
   font-family:var(--hero-font);

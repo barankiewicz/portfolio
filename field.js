@@ -52,9 +52,9 @@
      * and column of that side's edge stick out by up to that many more
      * cells. The fill is the hole's grey (0 is the stage black) and fades
      * over cutFade seconds as a hole opens or closes. */
-    cutPadL: 1, cutPadR: 3, cutPadT: 0, cutPadB: 1,
-    cutRagL: 0, cutRagR: 2, cutRagT: 0, cutRagB: 1,
-    cutFill: 0, cutFade: 0.4
+    cutPadL: 0.25, cutPadR: 8, cutPadT: 0, cutPadB: 0,
+    cutRagL: 6, cutRagR: 0, cutRagT: 0, cutRagB: 0,
+    cutFill: 31, cutFade: 0.05
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
