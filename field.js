@@ -905,6 +905,8 @@
     bitmaps: GLYPHS,
     large: LARGE,
     reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
+    /* re-measure the holes now, for a cutout that appears on its own */
+    sync: function(){ sync(); },
     /* The cut cells, for the tuning page's hole overlay, and the soft
      * cells and tones, for the review probes. */
     holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone, fill: field.fill, section: field.section }; },

@@ -55,6 +55,18 @@
   --lag: .25s;                /* text behind the erosion; at least six soft fade steps (6 x 25ms) plus slow frames */
   --stagger: 35ms;            /* between blocks opening together */
   --shut: .14s;               /* text wiping out on close */
+
+  /* The cloud clip, top right: its width in vw up to a px cap (and its
+     own vw at 720 and under), nudged in px from the right gutter and
+     down from the top. Its box snaps outward to the field's cells. */
+  --cloud-vw: 22;
+  --cloud-max: 360;           /* px */
+  --cloud-vw-sm: 40;          /* at 720px and under */
+  --cloud-x: 0;               /* px in from the right gutter */
+  --cloud-y: 44;              /* px down from the top */
+  --cloud-y-sm: 48;           /* px down from under the nav, at 720 and under, where the nav takes the width */
+  --cell-w: 12px;             /* a field cell: PARAMS.pixel 2 x 6x8 */
+  --cell-h: 16px;
 }
 
 /* === RESET === */
@@ -203,6 +215,28 @@ nav > *{pointer-events:auto}
    field's own intro ease. */
 .js .nav-left,.js .hero-content{opacity:0;transition:opacity 1.6s cubic-bezier(.37,0,.63,1)}
 .js.fonts-ready .nav-left,.js.fonts-ready .hero-content{opacity:1}
+
+/* === CLOUD CLIP ===
+   The one thing in colour (PRODUCT.md). A canvas cloud.js draws, in its
+   own hole; its edges sit on the field's cell grid, so the ASCII take's
+   glyphs line up with the field round it. Hidden until its first frame
+   can be drawn, then it sweeps open with the hero and fades up. */
+.cloud{
+  --w:min(calc(var(--cloud-vw) * 1vw), calc(var(--cloud-max) * 1px));
+  --r:calc(100vw - var(--edge) - var(--cloud-x) * 1px);
+  position:fixed;z-index:3;display:block;
+  left:calc(var(--r) - var(--w));top:calc(var(--cloud-y) * 1px);
+  width:var(--w);height:calc(var(--w) * 9 / 16);
+  left:round(down, var(--r) - var(--w), var(--cell-w));
+  top:round(down, var(--cloud-y) * 1px, var(--cell-h));
+  width:calc(round(up, var(--r), var(--cell-w)) - round(down, var(--r) - var(--w), var(--cell-w)));
+  height:round(up, var(--w) * 9 / 16, var(--cell-h));
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .8s cubic-bezier(.37,0,.63,1);
+}
+.cloud.ready{opacity:1}
+body.page-open .cloud.ready.dim{opacity:.35}
 
 /* === STRATA ===
    Every content block is its own hole in the field (data-cutout in the
@@ -414,7 +448,7 @@ footer{
    Holes and text are simply there; routes swap with no sweep. */
 @media (prefers-reduced-motion: reduce){
   .js [data-sweep]{--cut:1;--txt:1;transition:none;-webkit-mask:none;mask:none}
-  .js .nav-left,.js .hero-content,.proj-dither{transition:none}
+  .js .nav-left,.js .hero-content,.proj-dither,.cloud{transition:none}
 }
 
 /* === RESPONSIVE === */
@@ -426,6 +460,11 @@ footer{
 @media(max-width:720px){
   :root{--edge:24px;--step:24px}
   .nav-meta{display:none}
+  .cloud{
+    --cloud-vw:var(--cloud-vw-sm);
+    top:calc(var(--page-top, 120px) + var(--cloud-y-sm) * 1px);
+    top:round(down, var(--page-top, 120px) + var(--cloud-y-sm) * 1px, var(--cell-h));
+  }
   .strata-head{margin-top:88px}
   .cv-intro p,.contact-intro{font-size:1.1rem}
   .tl-item h4{font-size:1.3rem}
