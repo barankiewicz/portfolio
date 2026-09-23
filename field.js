@@ -26,12 +26,12 @@
     fps: 10,
     pace: 0.8,                                 // pattern seconds per real second
     rise: 1.8, fall: 1.6,                      // brightness slew per second, capped at one tone per tick
-    threshold: 0.12,                           // below this a cell is empty
+    threshold: 0.16,                           // below this a cell is empty
     gain: 1.8,                                 // overall brightness
     contrast: 2.45,                            // around mid grey; above 1 sharpens
     patterns: ['waves', 'waves', 'cells'],
     scales: [0.065, 0.26, 0.11],
-    ramps: [['·', '∘', '○', '░', '▒', '▓'], ['.', ':', '+', '░', '▒', '▓'], ['.', ',', ';', '1', '0', '▒']],
+    ramps: [['·', '∘', '○', '░', '▒', '▓'], ['.', 'x', 'y', '#', '▞', '▓'], ['.', ',', '+', '*', '0', '1']],
     /* waveHigh below waveLow inverts the waves: the troughs glow. */
     waveSpeed: 0.9, ringWeight: 3, ringSpeed: 2.25, waveLow: 0.42, waveHigh: 0.07,
     cellJitter: 0.33, cellSpeed: 1.55, cellLow: 0.21, cellHigh: 1,
@@ -39,12 +39,12 @@
     border1: 0.31, border2: 0.74, borderWobble: 0.29, borderJag: 0.19, borderBand: 16, borderSpeed: 0.09,
     pixel: 2,                                  // CSS px per glyph pixel; a cell is 6x8 glyph pixels
     midSize: 1.5, bigSize: 2,                  // the two larger sizes, from LARGE
-    midAmount: 0.12, bigAmount: 0.34,          // how much of the field draws at each
-    smallAmount: 0,                            // how much draws at 0.5x; needs a glyph pixel of 2 or more
+    midAmount: 0.11, bigAmount: 0.25,          // how much of the field draws at each
+    smallAmount: 0.36,                         // how much draws at 0.5x; needs a glyph pixel of 2 or more
     sizeScale: 0.3, sizeSpeed: 0.035,          // size patches: frequency, and how fast they change
     sizeFade: 1.4, glyphFade: 0.3,
-    curve: 1,                                  // below 1 favours dense glyphs, above 1 sparse ones
-    dither: 0,                                 // each cell's brightness scaled by up to +-dither/2, fixed per cell
+    curve: 1.3,                                // below 1 favours dense glyphs, above 1 sparse ones
+    dither: 0.7,                               // each cell's brightness scaled by up to +-dither/2, fixed per cell
     greyMid: 4, greyBright: 6,                 // tone at which the mid grey and white start
     greys: [123, 199, 255]
   };

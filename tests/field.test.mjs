@@ -184,12 +184,12 @@ test('a large glyph crossfades into its next glyph instead of swapping in one ti
 });
 
 test('the size amounts decide how much of the field draws large', () => {
-  const saved = { midAmount: PARAMS.midAmount, bigAmount: PARAMS.bigAmount, bigSize: PARAMS.bigSize };
+  const saved = { midAmount: PARAMS.midAmount, bigAmount: PARAMS.bigAmount, bigSize: PARAMS.bigSize, smallAmount: PARAMS.smallAmount };
   const share = (size) => { const f = createField(5, 120, 68, ASPECT); run(f, 5 * SECOND); return f.tiles.filter((t) => t.to === size).length / f.tiles.length; };
   try {
-    Object.assign(PARAMS, { midAmount: 0, bigAmount: 0 });
+    Object.assign(PARAMS, { midAmount: 0, bigAmount: 0, smallAmount: 0 });
     assert.equal(share(1), 1);
-    Object.assign(PARAMS, { midAmount: 0, bigAmount: 1, bigSize: 3 });
+    Object.assign(PARAMS, { midAmount: 0, bigAmount: 1, bigSize: 3, smallAmount: 0 });
     assert.equal(share(3), 1);
   } finally {
     Object.assign(PARAMS, saved);
@@ -282,7 +282,7 @@ test('at least three glyph sizes are on screen at once', () => {
   const field = createField(5, 120, 68, ASPECT);
   run(field, 5 * SECOND);
   const sizes = new Set(field.tiles.map((t) => t.to));
-  assert.deepEqual([...sizes].sort(), [1, 1.5, 2]);
+  assert.ok(sizes.size >= 3 && sizes.has(1), `sizes on screen: ${[...sizes].sort().join(', ')}`);
 });
 
 test('a large part of the field is quiet: most cells hold each tick, many hold for 10s', () => {
