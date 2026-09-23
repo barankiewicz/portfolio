@@ -9,75 +9,88 @@
 (function(){
   'use strict';
 
-  /* Three sections side by side, each with its own pattern and its own
-   * glyphs, sparse to dense. A cell's tone (1-6) picks the glyph from its
-   * section's ramp; tone 0 is an empty cell. The faint end is each
-   * section's own characters, the dense end shade blocks the sections
-   * share, which is what lets them run into one another. */
-  var SECTIONS = [
-    { name: 'cells', pattern: 'cells', scale: 0.09, ramp: ['·', '∘', '○', '░', '▒', '▓'] },
-    { name: 'waves', pattern: 'waves', scale: 0.1,  ramp: ['.', ':', '+', '░', '▒', '▓'] },
-    { name: 'binary', pattern: 'cells', scale: 0.17, ramp: ['.', ',', ';', '1', '0', '▒'] }
-  ];
   var TONES = 6;
+  /* Sizes are 1x, 1.5x and 2x cells, laid out in tiles of 6x6 cells. */
+  var TILE = 6;
+  var SIZES = [1, 1.5, 2];
+  var INTRO = 1.6;                             // whole field fades up on load
+
+  /* Every tunable value, read live on each tick so the tuning page can
+   * change them while the field runs. Three sections sit side by side,
+   * each with its own pattern, scale and 6-glyph ramp from sparse to
+   * dense; the ramps end in shade blocks the sections share, which is
+   * what lets them run into one another. */
+  var DEFAULTS = {
+    fps: 12,
+    pace: 0.8,                                 // pattern seconds per real second
+    rise: 1.8, fall: 1.6,                      // brightness slew per second, capped at one tone per tick
+    threshold: 0.05,                           // below this a cell is empty
+    gain: 1,                                   // overall brightness
+    contrast: 1,                               // around mid grey; above 1 sharpens
+    patterns: ['cells', 'waves', 'cells'],
+    scales: [0.09, 0.1, 0.17],
+    ramps: [['·', '∘', '○', '░', '▒', '▓'], ['.', ':', '+', '░', '▒', '▓'], ['.', ',', ';', '1', '0', '▒']],
+    waveSpeed: 1, ringWeight: 1, ringSpeed: 1.1, waveLow: 0.35, waveHigh: 0.95,
+    cellJitter: 0.38, cellSpeed: 1, cellLow: 0.15, cellHigh: 0.95,
+    maskScale: 0.03, maskSpeed: 0.04, maskLow: 0.35, maskHigh: 0.68,
+    border1: 0.34, border2: 0.66, borderWobble: 0.2, borderJag: 0.08, borderBand: 6, borderSpeed: 0.04,
+    sizeScale: 0.3, sizeMid: 0.54, sizeBig: 0.66, sizeFade: 1.4, glyphFade: 0.3,
+    greys: [96, 170, 255]                      // tones 1-3, 4-5 and 6
+  };
+  var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
   /* Pixel bitmaps, at most 6x8. Shade glyphs fill the whole cell so they
    * join up with their neighbours; the rest sit in 5x7 and keep a
-   * one-pixel gap. */
+   * one-pixel gap. More than the default ramps use, so ramps can be
+   * changed on the tuning page. */
   var GLYPHS = {
     '.': ['.....', '.....', '.....', '.....', '.....', '.....', '..#..'],
+    ',': ['.....', '.....', '.....', '.....', '.....', '..#..', '.#...'],
     ':': ['.....', '.....', '..#..', '.....', '.....', '..#..', '.....'],
+    ';': ['.....', '.....', '..#..', '.....', '.....', '..#..', '.#...'],
+    "'": ['..#..', '..#..', '.....', '.....', '.....', '.....', '.....'],
+    '!': ['..#..', '..#..', '..#..', '..#..', '..#..', '.....', '..#..'],
+    '?': ['.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'],
+    '-': ['.....', '.....', '.....', '#####', '.....', '.....', '.....'],
+    '=': ['.....', '.....', '#####', '.....', '#####', '.....', '.....'],
     '+': ['.....', '..#..', '..#..', '#####', '..#..', '..#..', '.....'],
+    '~': ['.....', '.....', '.#...', '#.#.#', '...#.', '.....', '.....'],
+    '/': ['....#', '....#', '...#.', '..#..', '.#...', '#....', '#....'],
+    '\\': ['#....', '#....', '.#...', '..#..', '...#.', '....#', '....#'],
+    '|': ['..#..', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..'],
+    '<': ['...#.', '..#..', '.#...', '#....', '.#...', '..#..', '...#.'],
+    '>': ['.#...', '..#..', '...#.', '....#', '...#.', '..#..', '.#...'],
+    '*': ['.....', '..#..', '#.#.#', '.###.', '#.#.#', '..#..', '.....'],
+    '#': ['.#.#.', '.#.#.', '#####', '.#.#.', '#####', '.#.#.', '.#.#.'],
+    '%': ['##...', '##..#', '...#.', '..#..', '.#...', '#..##', '...##'],
+    '@': ['.###.', '#...#', '#.###', '#.#.#', '#.###', '#....', '.####'],
+    '&': ['.##..', '#..#.', '#.#..', '.#...', '#.#.#', '#..#.', '.##.#'],
+    '$': ['..#..', '.####', '#.#..', '.###.', '..#.#', '####.', '..#..'],
+    '0': ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
+    '1': ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
+    'x': ['.....', '.....', '#...#', '.#.#.', '..#..', '.#.#.', '#...#'],
+    'o': ['.....', '.....', '.###.', '#...#', '#...#', '#...#', '.###.'],
     '·': ['.....', '.....', '.....', '..#..', '.....', '.....', '.....'],
     '∘': ['.....', '.....', '.###.', '.#.#.', '.###.', '.....', '.....'],
     '○': ['.....', '.###.', '#...#', '#...#', '#...#', '.###.', '.....'],
-    ',': ['.....', '.....', '.....', '.....', '.....', '..#..', '.#...'],
-    ';': ['.....', '.....', '..#..', '.....', '.....', '..#..', '.#...'],
-    '1': ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
-    '0': ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
+    '●': ['.....', '.###.', '#####', '#####', '#####', '.###.', '.....'],
+    '◇': ['..#..', '.#.#.', '#...#', '.#.#.', '..#..', '.....', '.....'],
+    '◆': ['..#..', '.###.', '#####', '.###.', '..#..', '.....', '.....'],
+    '≈': ['.....', '.#..#', '#.##.', '.....', '.#..#', '#.##.', '.....'],
+    '∴': ['.....', '..#..', '.....', '.....', '#...#', '.....', '.....'],
+    '─': ['......', '......', '......', '######', '......', '......', '......', '......'],
+    '│': ['..#...', '..#...', '..#...', '..#...', '..#...', '..#...', '..#...', '..#...'],
+    '┼': ['..#...', '..#...', '..#...', '######', '..#...', '..#...', '..#...', '..#...'],
+    '╬': ['.#.#..', '.#.#..', '##.###', '......', '##.###', '.#.#..', '.#.#..', '.#.#..'],
+    '▚': ['###...', '###...', '###...', '###...', '...###', '...###', '...###', '...###'],
+    '▞': ['...###', '...###', '...###', '...###', '###...', '###...', '###...', '###...'],
     '░': ['#.#.#.', '......', '#.#.#.', '......', '#.#.#.', '......', '#.#.#.', '......'],
     '▒': ['#.#.#.', '.#.#.#', '#.#.#.', '.#.#.#', '#.#.#.', '.#.#.#', '#.#.#.', '.#.#.#'],
-    '▓': ['.#.#.#', '######', '.#.#.#', '######', '.#.#.#', '######', '.#.#.#', '######']
+    '▓': ['.#.#.#', '######', '.#.#.#', '######', '.#.#.#', '######', '.#.#.#', '######'],
+    '█': ['######', '######', '######', '######', '######', '######', '######', '######']
   };
-
   /* Every glyph the field can draw; index 0 is the empty cell. */
-  var CHARS = [' '];
-  SECTIONS.forEach(function(sec){
-    sec.glyphs = sec.ramp.map(function(ch){
-      if (CHARS.indexOf(ch) < 0) CHARS.push(ch);
-      return CHARS.indexOf(ch);
-    });
-  });
-  /* Three greys, dim to white: tones 1-3, 4-5 and 6. White is kept for
-   * the densest tone so shade blocks only glare at the very peaks. */
-  var GREYS = [96, 170, 255];
-
-  var THRESHOLD = 0.05;                        // below this a cell is empty
-  var TONE_STEP = (1 - THRESHOLD) / TONES;
-  /* The field steps at 12fps, not at the display's rate. */
-  var TICK = 1 / 12;
-  /* Brightness slews at most this fast, so a cell can only move one tone
-   * per tick (RISE * TICK < TONE_STEP). That is the no-yank guarantee:
-   * every appearance starts at its section's faintest glyph. */
-  var RISE = 1.8;                              // per second, 0 to 1 in 560ms
-  var FALL = 1.6;                              // per second, 1 to 0 in 630ms
-  var MAX_DT = TICK;
-  var PACE = 0.8;                              // pattern seconds per real second
-  var INTRO = 1.6;                             // whole field fades up on load
-  var TILE = 6;                                // a tile is 6x6 base cells
-  var SIZES = [1, 1.5, 2];                     // glyph sizes, in cells; each divides TILE
-  var SIZE_FADE = 1.4;                         // size crossfade, seconds
-  /* A 1x glyph changing reads as texture, but a larger glyph swapping
-   * form in one tick is a pop, so large cells crossfade each change. */
-  var GLYPH_FADE = 0.3;                        // about four ticks at 12fps
-
-  function toneOf(v){
-    if (v < THRESHOLD) return 0;
-    return Math.min(TONES, 1 + Math.floor((v - THRESHOLD) / TONE_STEP));
-  }
-  function greyOf(tone){
-    return tone < 4 ? 0 : tone < 6 ? 1 : 2;
-  }
+  var CHARS = [' '].concat(Object.keys(GLYPHS));
 
   function easeInOutSine(u){ return 0.5 - 0.5 * Math.cos(Math.PI * u); }
   function smoothstep(a, b, x){
@@ -117,45 +130,46 @@
    * the motion reads as one surface rather than as noise. */
 
   /* Waves: three plane waves and one ring wave from a wandering centre,
-   * summed, with their crests sharpened. Directions, wavelengths and
-   * speeds are drawn per field. */
-  function makeWaves(rnd, scale){
+   * summed, with their crests sharpened. Directions, relative wavelengths
+   * and speeds are drawn per field; the scale is applied live. */
+  function makeWaves(rnd){
     var planes = [];
     for (var k = 0; k < 3; k++){
-      var a = rnd() * Math.PI * 2, n = scale * (0.6 + rnd() * 0.8);
+      var a = rnd() * Math.PI * 2, n = 0.6 + rnd() * 0.8;
       planes.push({ kx: Math.cos(a) * n, ky: Math.sin(a) * n, w: 0.6 + rnd() * 0.9 });
     }
-    return { planes: planes, ring: scale * (0.7 + rnd() * 0.5), cx: rnd(), cy: rnd(), phase: rnd() * 100 };
+    return { planes: planes, ring: 0.7 + rnd() * 0.5, cx: rnd(), cy: rnd(), phase: rnd() * 100 };
   }
-  function wavesAt(p, x, y, t, cols, rows){
-    var v = 0;
+  function wavesAt(p, scale, x, y, t, cols, rows){
+    var P = PARAMS, v = 0, ts = t * P.waveSpeed;
     for (var k = 0; k < 3; k++){
       var w = p.planes[k];
-      v += 0.5 + 0.5 * Math.sin(w.kx * x + w.ky * y - w.w * t);
+      v += 0.5 + 0.5 * Math.sin((w.kx * x + w.ky * y) * scale - w.w * ts);
     }
-    var cx = cols * (p.cx + 0.3 * Math.sin(t * 0.07 + p.phase));
-    var cy = rows * (p.cy + 0.3 * Math.cos(t * 0.05 + p.phase));
+    var cx = cols * (p.cx + 0.3 * Math.sin(ts * 0.07 + p.phase));
+    var cy = rows * (p.cy + 0.3 * Math.cos(ts * 0.05 + p.phase));
     var dx = x - cx, dy = y - cy;
-    v += 0.5 + 0.5 * Math.sin(Math.sqrt(dx * dx + dy * dy) * p.ring - t * 1.1);
-    return smoothstep(0.35, 0.95, v / 4);
+    v += P.ringWeight * (0.5 + 0.5 * Math.sin(Math.sqrt(dx * dx + dy * dy) * p.ring * scale - ts * P.ringSpeed));
+    return smoothstep(P.waveLow, P.waveHigh, v / (3 + P.ringWeight));
   }
 
   /* Cells: distance to the nearest of a jittered grid of points, each
    * point circling its own slot, so dark blobs breathe inside a bright
    * mesh. */
   function cellsAt(salt, scale, x, y, t){
-    var X = x * scale, Y = y * scale, ix = Math.floor(X), iy = Math.floor(Y), best = 9;
+    var P = PARAMS, X = x * scale, Y = y * scale, ix = Math.floor(X), iy = Math.floor(Y), best = 9;
+    var ts = t * P.cellSpeed, r = P.cellJitter;
     for (var j = -1; j <= 1; j++){
       for (var i = -1; i <= 1; i++){
         var gx = ix + i, gy = iy + j;
         var a = hash3(salt, gx, gy, 0) * 6.2832, b = hash3(salt, gx, gy, 1) * 6.2832;
         var s = 0.4 + 0.5 * hash3(salt, gx, gy, 2);
-        var px = gx + 0.5 + 0.38 * Math.sin(t * s + a), py = gy + 0.5 + 0.38 * Math.cos(t * s * 0.8 + b);
+        var px = gx + 0.5 + r * Math.sin(ts * s + a), py = gy + 0.5 + r * Math.cos(ts * s * 0.8 + b);
         var d = (X - px) * (X - px) + (Y - py) * (Y - py);
         if (d < best) best = d;
       }
     }
-    return smoothstep(0.15, 0.95, Math.sqrt(best));
+    return smoothstep(P.cellLow, P.cellHigh, Math.sqrt(best));
   }
 
   /* === FIELD === */
@@ -165,18 +179,30 @@
       seed: seed | 0, cols: 0, rows: 0, aspect: aspect || 1,
       real: 0, time: 0,
       level: null, tone: null, grey: null, glyph: null, section: null,
-      tiles: [], waves: [],
+      tiles: [], waves: [makeWaves(rnd), makeWaves(rnd), makeWaves(rnd)],
       step: step, resize: resize
     };
-    SECTIONS.forEach(function(sec){ f.waves.push(makeWaves(rnd, sec.scale)); });
+    var rampGlyphs = [[], [], []], toneStep = 1;
+
+    function toneOf(v){
+      if (v < PARAMS.threshold) return 0;
+      return Math.min(TONES, 1 + Math.floor((v - PARAMS.threshold) / toneStep));
+    }
+    function greyOf(tone){
+      return tone < 4 ? 0 : tone < 6 ? 1 : 2;
+    }
+    function glyphFor(sec, tone){
+      return tone ? rampGlyphs[sec][tone - 1] : 0;
+    }
 
     /* Tile size wanders with slow noise; hysteresis keeps a tile from
      * flickering between sizes at a threshold. */
     function sizeTarget(tile){
-      var n = noise3(f.seed ^ 0x5bd1e995, tile.x * 0.3, tile.y * 0.3 * f.aspect, f.time * 0.035);
+      var P = PARAMS, s = P.sizeScale;
+      var n = noise3(f.seed ^ 0x5bd1e995, tile.x * s, tile.y * s * f.aspect, f.time * 0.035);
       var margin = 0.03;                       // harder to enter a size than to stay in it
-      if (n > (tile.to === 2 ? 0.66 - margin : 0.66 + margin)) return 2;
-      if (n > (tile.to === 1 ? 0.54 + margin : 0.54 - margin)) return 1.5;
+      if (n > (tile.to === 2 ? P.sizeBig - margin : P.sizeBig + margin)) return 2;
+      if (n > (tile.to === 1 ? P.sizeMid + margin : P.sizeMid - margin)) return 1.5;
       return 1;
     }
     function buildTiles(old){
@@ -201,13 +227,13 @@
      * near a border are dithered between its two sides, so the sections
      * flow into one another instead of meeting at a line. */
     function assignSections(){
-      var band = 6 / f.cols, t = f.time;
+      var P = PARAMS, band = P.borderBand / f.cols, t = f.time * P.borderSpeed;
       for (var y = 0; y < f.rows; y++){
         var ya = y * f.aspect;
-        var b1 = 0.34 + 0.2 * (noise3(f.seed ^ 0x27d4eb2d, ya * 0.05, t * 0.04, 0) - 0.5)
-                      + 0.08 * (noise3(f.seed ^ 0x27d4eb2d, ya * 0.3, t * 0.15, 1) - 0.5);
-        var b2 = 0.66 + 0.2 * (noise3(f.seed ^ 0x165667b1, ya * 0.05, t * 0.04, 0) - 0.5)
-                      + 0.08 * (noise3(f.seed ^ 0x165667b1, ya * 0.3, t * 0.15, 1) - 0.5);
+        var b1 = P.border1 + P.borderWobble * (noise3(f.seed ^ 0x27d4eb2d, ya * 0.05, t, 0) - 0.5)
+                           + P.borderJag * (noise3(f.seed ^ 0x27d4eb2d, ya * 0.3, t * 3.75, 1) - 0.5);
+        var b2 = P.border2 + P.borderWobble * (noise3(f.seed ^ 0x165667b1, ya * 0.05, t, 0) - 0.5)
+                           + P.borderJag * (noise3(f.seed ^ 0x165667b1, ya * 0.3, t * 3.75, 1) - 0.5);
         for (var x = 0; x < f.cols; x++){
           var u = x / f.cols, h = hash3(f.seed, x, y, 7);
           f.section[y * f.cols + x] = h < smoothstep(-band, band, u - b2) ? 2 : h < smoothstep(-band, band, u - b1) ? 1 : 0;
@@ -219,12 +245,13 @@
      * slow mask that lets whole regions swell up and die away, so a large
      * part of the field is always resting. */
     function patternAt(sec, x, y){
-      var s = SECTIONS[sec], ya = y * f.aspect, t = f.time;
-      var v = s.pattern === 'waves'
-        ? wavesAt(f.waves[sec], x, ya, t, f.cols, f.rows * f.aspect)
-        : cellsAt(f.seed ^ (sec * 0x9e3779b1), s.scale, x, ya, t);
-      var mask = smoothstep(0.35, 0.68, noise3(f.seed ^ 0x3c6ef372, x * 0.03, ya * 0.03, t * 0.04));
-      return v * mask;
+      var P = PARAMS, ya = y * f.aspect, t = f.time;
+      var v = P.patterns[sec] === 'waves'
+        ? wavesAt(f.waves[sec], P.scales[sec], x, ya, t, f.cols, f.rows * f.aspect)
+        : cellsAt(f.seed ^ (sec * 0x9e3779b1), P.scales[sec], x, ya, t);
+      var mask = smoothstep(P.maskLow, P.maskHigh, noise3(f.seed ^ 0x3c6ef372, x * P.maskScale, ya * P.maskScale, t * P.maskSpeed));
+      v = Math.max(0, Math.min(1, (v - 0.5) * P.contrast + 0.5));
+      return Math.min(1, v * mask * P.gain);
     }
 
     function resize(c, r){
@@ -243,13 +270,20 @@
     }
 
     function step(dtMs){
-      var dt = Math.min(dtMs / 1000, MAX_DT);
+      var P = PARAMS, tick = 1 / P.fps;
+      var dt = Math.min(dtMs / 1000, tick);
       f.real += dt;
-      f.time += dt * PACE;
+      f.time += dt * P.pace;
+      toneStep = (1 - P.threshold) / TONES;
+      for (var s = 0; s < 3; s++) for (var k = 0; k < TONES; k++) rampGlyphs[s][k] = Math.max(1, CHARS.indexOf(P.ramps[s][k]));
       assignSections();
 
+      /* Brightness slews at most one tone per tick whatever the tuning:
+       * the no-yank guarantee, so every appearance starts at its
+       * section's faintest glyph. */
+      var cap = toneStep * 0.95;
       var gain = f.real < INTRO ? easeInOutSine(f.real / INTRO) : 1;
-      var rise = RISE * dt, fall = FALL * dt;
+      var rise = Math.min(P.rise * dt, cap), fall = Math.min(P.fall * dt, cap);
       for (var y = 0; y < f.rows; y++){
         for (var x = 0; x < f.cols; x++){
           var i = y * f.cols + x, sec = f.section[i];
@@ -260,7 +294,7 @@
           f.level[i] = v;
           f.tone[i] = tone;
           f.grey[i] = greyOf(tone);
-          f.glyph[i] = tone ? SECTIONS[sec].glyphs[tone - 1] : 0;
+          f.glyph[i] = glyphFor(sec, tone);
         }
       }
 
@@ -268,8 +302,8 @@
         var t = f.tiles[ti];
         stepLargeCells(t, dt);
         if (t.from !== t.to){
-          t.mix = easeInOutSine(Math.min(1, (f.time - t.t0) / SIZE_FADE));
-          if (f.time - t.t0 >= SIZE_FADE){ t.from = t.to; t.mix = 1; }
+          t.mix = easeInOutSine(Math.min(1, (f.time - t.t0) / (P.sizeFade * P.pace)));
+          if (f.time - t.t0 >= P.sizeFade * P.pace){ t.from = t.to; t.mix = 1; }
           continue;
         }
         var want = sizeTarget(t);
@@ -278,7 +312,9 @@
     }
 
     /* A large cell shows the brightest thing under it, and only takes a
-     * new glyph once its previous crossfade has finished. */
+     * new glyph once its previous crossfade has finished. A 1x glyph
+     * changing reads as texture, but a larger glyph swapping form in one
+     * tick is a pop. */
     function stepLargeCells(t, dt){
       for (var si = 1; si < SIZES.length; si++){
         var s = SIZES[si], n = TILE / s;
@@ -288,9 +324,9 @@
           /* A 1.5x glyph straddles cells, so take every cell it overlaps. */
           for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
             for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) v = Math.max(v, f.level[y * f.cols + x]);
-          c.u = Math.min(1, c.u + dt / GLYPH_FADE);
+          c.u = Math.min(1, c.u + dt / PARAMS.glyphFade);
           var tone = toneOf(v), gr = greyOf(tone);
-          var g = tone ? SECTIONS[f.section[Math.floor(y0) * f.cols + Math.floor(x0)]].glyphs[tone - 1] : 0;
+          var g = glyphFor(f.section[Math.floor(y0) * f.cols + Math.floor(x0)], tone);
           if (c.u >= 1 && (g !== c.glyph || gr !== c.grey)){
             c.fromGlyph = c.glyph; c.fromGrey = c.grey;
             c.glyph = g; c.grey = gr; c.u = 0;
@@ -306,7 +342,7 @@
     return f;
   }
 
-  var api = { createField: createField, SECTIONS: SECTIONS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, GREYS: GREYS, TICK: TICK };
+  var api = { createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER === */
@@ -318,37 +354,41 @@
    * chunkier pixels (3px at 1.5x, 4px at 2x). */
   var GW = 6, GH = 8, PX = 2;
   var CW = GW * PX, CH = GH * PX;
-  var TICK_MS = TICK * 1000;
-  var atlas = null, dpr = 1, field = null, raf = 0, last = 0, owed = 0;
+  var atlas = null, atlasGreys = '', dpr = 1, field = null, raf = 0, last = 0, owed = 0;
 
   /* One row of glyphs per grey, drawn pixel by pixel: hard edges, no
    * antialiasing, and only the three greys ever reach the canvas. */
   function buildAtlas(){
+    var greys = PARAMS.greys;
+    atlasGreys = greys.join();
     atlas = document.createElement('canvas');
-    atlas.width = CHARS.length * GW; atlas.height = GREYS.length * GH;
+    atlas.width = CHARS.length * GW; atlas.height = greys.length * GH;
     var g = atlas.getContext('2d'), img = g.createImageData(atlas.width, atlas.height);
     for (var ri = 1; ri < CHARS.length; ri++){
       var rows = GLYPHS[CHARS[ri]];
       for (var py = 0; py < rows.length; py++) for (var px = 0; px < rows[py].length; px++){
         if (rows[py].charAt(px) !== '#') continue;
-        for (var gi = 0; gi < GREYS.length; gi++){
+        for (var gi = 0; gi < greys.length; gi++){
           var o = ((gi * GH + py) * atlas.width + ri * GW + px) * 4;
-          img.data[o] = img.data[o + 1] = img.data[o + 2] = GREYS[gi]; img.data[o + 3] = 255;
+          img.data[o] = img.data[o + 1] = img.data[o + 2] = greys[gi]; img.data[o + 3] = 255;
         }
       }
     }
     g.putImageData(img, 0, 0);
   }
 
+  function newField(cols, rows){
+    field = createField(crypto.getRandomValues(new Uint32Array(1))[0], cols, rows, CH / CW);
+  }
+
   function fit(){
     var w = window.innerWidth, h = window.innerHeight;
-    var d = Math.min(window.devicePixelRatio || 1, 2);
-    dpr = d;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (!atlas) buildAtlas();
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
     var cols = Math.ceil(w / CW), rows = Math.ceil(h / CH);
-    if (!field) field = createField(crypto.getRandomValues(new Uint32Array(1))[0], cols, rows, CH / CW);
+    if (!field) newField(cols, rows);
     else field.resize(cols, rows);
   }
 
@@ -379,6 +419,7 @@
   }
 
   function draw(){
+    if (PARAMS.greys.join() !== atlasGreys) buildAtlas();
     ctx.globalAlpha = 1;
     ctx.imageSmoothingEnabled = false;         // resizing the canvas resets it
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -390,13 +431,14 @@
   }
 
   /* The display runs at its own rate; the field only steps and redraws
-   * once a tick is owed, so it moves on its own 12fps clock. */
+   * once a tick is owed, so it moves on its own clock (12fps by default). */
   function frame(now){
-    owed += last ? now - last : TICK_MS;
+    var tickMs = 1000 / PARAMS.fps;
+    owed += last ? now - last : tickMs;
     last = now;
-    if (owed >= TICK_MS){
-      owed = Math.min(owed - TICK_MS, TICK_MS);
-      field.step(TICK_MS);
+    if (owed >= tickMs){
+      owed = Math.min(owed - tickMs, tickMs);
+      field.step(tickMs);
       draw();
     }
     raf = requestAnimationFrame(frame);
@@ -414,8 +456,17 @@
   /* Reduced motion shows one settled frame and never starts the loop, so
    * cells uncovered by a resize have to be settled here or stay empty. */
   function settle(){
-    for (var k = 0; k < 150; k++) field.step(TICK_MS);
+    for (var k = 0; k < 150; k++) field.step(1000 / PARAMS.fps);
   }
+
+  /* The tuning page (.claude/review-02/tune.html) reaches the live values
+   * and a reseed through this handle. */
+  window.asciiField = {
+    params: PARAMS,
+    defaults: DEFAULTS,
+    glyphs: Object.keys(GLYPHS),
+    reseed: function(){ newField(field.cols, field.rows); if (reduce){ settle(); draw(); } }
+  };
 
   function begin(){
     fit();

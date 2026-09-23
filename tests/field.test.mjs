@@ -3,11 +3,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-const { createField, SECTIONS, GLYPHS, CHARS, TONES, GREYS, TICK } = createRequire(import.meta.url)('../field.js');
+const { createField, PARAMS, DEFAULTS, GLYPHS, CHARS, TONES } = createRequire(import.meta.url)('../field.js');
 
-const STEP = TICK * 1000; // the renderer steps the field at 12fps
+const STEP = 1000 / DEFAULTS.fps; // the renderer steps the field at its fps
 const ASPECT = 16 / 12;
-const SECOND = Math.round(1 / TICK);
+const SECOND = DEFAULTS.fps;
+const glyphOf = (sec, tone) => CHARS.indexOf(PARAMS.ramps[sec][tone - 1]);
 
 function run(field, ticks, dt = STEP, onTick) {
   for (let f = 0; f < ticks; f++) {
@@ -53,6 +54,21 @@ test('tone and grey never move more than one step in a tick, at 12, 30 or 60fps'
   }
 });
 
+test('no tuning can make a cell jump: the slew is capped at one tone per tick', () => {
+  const saved = { rise: PARAMS.rise, fall: PARAMS.fall, fps: PARAMS.fps, contrast: PARAMS.contrast };
+  Object.assign(PARAMS, { rise: 50, fall: 50, fps: 5, contrast: 4 });
+  try {
+    const field = createField(7, 80, 45, ASPECT);
+    let prev = snapshot(field);
+    run(field, 200, 200, () => {
+      for (let i = 0; i < field.tone.length; i++) assert.ok(Math.abs(field.tone[i] - prev.tone[i]) <= 1, `tone jump at cell ${i}`);
+      prev = snapshot(field);
+    });
+  } finally {
+    Object.assign(PARAMS, saved);
+  }
+});
+
 test('a long frame (tab stall) is clamped so it cannot jump either', () => {
   const field = createField(7, 80, 45, ASPECT);
   run(field, 4 * SECOND);
@@ -91,7 +107,7 @@ test('each third of the screen draws mostly from its own section, and the border
   assert.ok(switches / field.rows > 3, `${(switches / field.rows).toFixed(1)} section switches per row at the border`);
   // Drawn glyphs come from the cell's own section.
   for (let i = 0; i < field.tone.length; i++) {
-    if (field.tone[i]) assert.equal(field.glyph[i], SECTIONS[field.section[i]].glyphs[field.tone[i] - 1]);
+    if (field.tone[i]) assert.equal(field.glyph[i], glyphOf(field.section[i], field.tone[i]));
   }
 });
 
@@ -213,10 +229,10 @@ test('regions swell and die away: a quarter of the screen does not stay equally 
   assert.ok(range > 0.15, `top-left quarter only ranged ${range.toFixed(2)} in lit share over 90s`);
 });
 
-test('every glyph in use has a pixel bitmap of at most 6x8', () => {
+test('every glyph has a pixel bitmap of at most 6x8, and the default ramps use only those', () => {
+  for (const ramp of DEFAULTS.ramps) for (const ch of ramp) assert.ok(GLYPHS[ch], `no bitmap for ${ch}`);
   for (const ch of CHARS.slice(1)) {
     const rows = GLYPHS[ch];
-    assert.ok(rows, `no bitmap for ${ch}`);
     assert.ok(rows.length <= 8, `${ch} is ${rows.length} rows tall`);
     for (const r of rows) assert.ok(r.length <= 6 && /^[.#]+$/.test(r), `${ch} has a bad row ${r}`);
   }
@@ -235,9 +251,10 @@ test('resize keeps the cells that are still on screen', () => {
 });
 
 test('each section ramp has one glyph per tone, in a few greys up to white', () => {
+  const greys = DEFAULTS.greys;
   assert.equal(CHARS[0], ' ');
-  for (const s of SECTIONS) assert.equal(s.ramp.length, TONES);
-  assert.ok(GREYS.length <= 3);
-  assert.equal(GREYS[GREYS.length - 1], 255);
-  for (let i = 1; i < GREYS.length; i++) assert.ok(GREYS[i] > GREYS[i - 1]);
+  for (const r of DEFAULTS.ramps) assert.equal(r.length, TONES);
+  assert.ok(greys.length <= 3);
+  assert.equal(greys[greys.length - 1], 255);
+  for (let i = 1; i < greys.length; i++) assert.ok(greys[i] > greys[i - 1]);
 });
