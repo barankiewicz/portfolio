@@ -6,7 +6,7 @@
   var hero = document.querySelector('.hero');
   var navLeft = document.querySelector('.nav-left');
   var firstLink = document.querySelector('.nav-links a');
-  var heroContent = document.querySelector('.hero-content');
+  var heroContent = document.querySelector('.hero-content'), nameText = document.createRange();
 
   /* === PAGE BOX ===
    * A page's content starts under the nav (everything above --page-top
@@ -15,8 +15,11 @@
   function placePages(){
     root.style.setProperty('--page-top', Math.ceil(navLeft.getBoundingClientRect().bottom + 8) + 'px');
     root.style.setProperty('--rail-x', Math.round(firstLink.getBoundingClientRect().left) + 'px');
-    /* the cloud clip stays above the name; kept while a page hides the hero */
-    var h = heroContent.getBoundingClientRect();
+    /* The cloud clip stays above the name's hole, which is cut round its
+     * text, taller than its box at a 0.7 line height. Kept while a page
+     * hides the hero. */
+    nameText.selectNodeContents(heroContent);
+    var h = nameText.getBoundingClientRect();
     if (h.height > 0) root.style.setProperty('--hero-top-px', Math.floor(h.top) + 'px');
   }
   if (window.ResizeObserver){ new ResizeObserver(placePages).observe(navLeft); new ResizeObserver(placePages).observe(heroContent); }
