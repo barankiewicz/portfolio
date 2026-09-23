@@ -396,6 +396,9 @@ function paintedInCut(field) {
   });
 }
 
+// Symmetric padding and rag, as the per-side params.
+const holeParams = (padX, padY, rag) => ({ cutPadL: padX, cutPadR: padX, cutPadT: padY, cutPadB: padY, cutRagL: rag, cutRagR: rag, cutRagT: rag, cutRagB: rag });
+
 function cutCells(field) {
   const out = [];
   for (let i = 0; i < field.cut.length; i++) if (field.cut[i]) out.push([i % field.cols, Math.floor(i / field.cols)]);
@@ -403,14 +406,14 @@ function cutCells(field) {
 }
 
 test('a cutout snaps outward to whole cells, then grows by its padding', () => {
-  withParams({ cutPadX: 0, cutPadY: 0, cutRag: 0 }, () => {
+  withParams({ ...holeParams(0, 0, 0) }, () => {
     const field = createField(3, 20, 10, ASPECT);
     field.setCutouts([{ x0: 2.3, y0: 1.5, x1: 5.1, y1: 2.2 }]);
     const want = [];
     for (let y = 1; y <= 2; y++) for (let x = 2; x <= 5; x++) want.push([x, y]);
     assert.deepEqual(cutCells(field), want);
   });
-  withParams({ cutPadX: 1, cutPadY: 1, cutRag: 0 }, () => {
+  withParams({ ...holeParams(1, 1, 0) }, () => {
     const field = createField(3, 20, 10, ASPECT);
     field.setCutouts([{ x0: 2, y0: 2, x1: 4, y1: 3 }]);
     const want = [];
@@ -420,7 +423,7 @@ test('a cutout snaps outward to whole cells, then grows by its padding', () => {
 });
 
 test('a cutout off the edge of the screen is clipped, and none clears the mask', () => {
-  withParams({ cutPadX: 1, cutPadY: 1, cutRag: 0 }, () => {
+  withParams({ ...holeParams(1, 1, 0) }, () => {
     const field = createField(3, 20, 10, ASPECT);
     field.setCutouts([{ x0: -9999, y0: 0, x1: -9900, y1: 2 }, { x0: 18.5, y0: 8.5, x1: 25, y1: 12 }]);
     assert.deepEqual(cutCells(field), [[17, 7], [18, 7], [19, 7], [17, 8], [18, 8], [19, 8], [17, 9], [18, 9], [19, 9]]);
@@ -430,7 +433,7 @@ test('a cutout off the edge of the screen is clipped, and none clears the mask',
 });
 
 test('nothing is painted inside a cutout at any glyph size, from the frame it appears', () => {
-  withParams({ bigAmount: 0.35, midAmount: 0.3, smallAmount: 0.3, cutPadX: 0, cutPadY: 0, cutRag: 0 }, () => {
+  withParams({ bigAmount: 0.35, midAmount: 0.3, smallAmount: 0.3, ...holeParams(0, 0, 0) }, () => {
     const field = createField(11, 96, 54, ASPECT);
     run(field, 8 * SECOND);
     const sizes = new Set(painted(field).map((p) => p[0]));
@@ -442,7 +445,7 @@ test('nothing is painted inside a cutout at any glyph size, from the frame it ap
 });
 
 test('a cell uncovered by a cutout fades back in from empty, one tone per tick', () => {
-  withParams({ cutPadX: 0, cutPadY: 0, cutRag: 0 }, () => {
+  withParams({ ...holeParams(0, 0, 0) }, () => {
     const field = createField(5, 60, 30, ASPECT);
     run(field, 6 * SECOND);
     field.setCutouts([{ x0: 10, y0: 5, x1: 50, y1: 25 }]);
@@ -460,7 +463,7 @@ test('a cell uncovered by a cutout fades back in from empty, one tone per tick',
 });
 
 test('ragged edges: rows and columns stick out by up to cutRag cells, never into the text box', () => {
-  withParams({ cutPadX: 0, cutPadY: 0, cutRag: 2 }, () => {
+  withParams({ ...holeParams(0, 0, 2) }, () => {
     const field = createField(9, 60, 30, ASPECT);
     const box = { x0: 20, y0: 10, x1: 40, y1: 16 };
     field.setCutouts([box]);
@@ -476,10 +479,58 @@ test('ragged edges: rows and columns stick out by up to cutRag cells, never into
 });
 
 test('resize keeps cutting the same boxes', () => {
-  withParams({ cutPadX: 0, cutPadY: 0, cutRag: 0 }, () => {
+  withParams({ ...holeParams(0, 0, 0) }, () => {
     const field = createField(3, 20, 10, ASPECT);
     field.setCutouts([{ x0: 2, y0: 2, x1: 4, y1: 3 }]);
     field.resize(30, 12);
     assert.deepEqual(cutCells(field), [[2, 2], [3, 2]]);
+  });
+});
+
+test('padding and rag are set per side, so a hole can sit off-centre on its text', () => {
+  withParams({ ...holeParams(0, 0, 0), cutPadL: 2, cutPadT: 1 }, () => {
+    const field = createField(3, 20, 10, ASPECT);
+    field.setCutouts([{ x0: 3, y0: 3, x1: 5, y1: 4 }]);
+    const want = [];
+    for (let y = 2; y <= 3; y++) for (let x = 1; x <= 4; x++) want.push([x, y]);
+    assert.deepEqual(cutCells(field), want);
+  });
+  withParams({ ...holeParams(0, 0, 0), cutRagL: 3 }, () => {
+    const field = createField(9, 60, 30, ASPECT);
+    field.setCutouts([{ x0: 20, y0: 10, x1: 40, y1: 16 }]);
+    const cells = cutCells(field);
+    assert.ok(cells.some(([x]) => x < 20), 'left edge is not ragged');
+    for (const [x, y] of cells) assert.ok(x >= 17 && x < 40 && y >= 10 && y < 16, `${x},${y} ragged on a side with no rag`);
+  });
+});
+
+test("a hole's fill fades in and out, never more than one tick of its fade at a time", () => {
+  withParams({ ...holeParams(0, 0, 0), cutFade: 0.5 }, () => {
+    const field = createField(4, 30, 20, ASPECT);
+    run(field, 3 * SECOND);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 15, y1: 10 }]);
+    const inside = 7 * 30 + 8, outside = 2 * 30 + 2, stepMax = (1 / DEFAULTS.fps) / 0.5 + 1e-6;
+    assert.equal(field.fill[inside], 0, 'fill painted at full on the frame the hole opened');
+    let prev = Float32Array.from(field.fill);
+    run(field, SECOND, STEP, () => {
+      for (let i = 0; i < field.fill.length; i++) assert.ok(Math.abs(field.fill[i] - prev[i]) <= stepMax, `fill jumped at ${i}`);
+      prev = Float32Array.from(field.fill);
+    });
+    assert.equal(field.fill[inside], 1);
+    assert.equal(field.fill[outside], 0);
+    field.setCutouts([]);
+    field.step(2000);
+    assert.ok(field.fill[inside] >= 1 - stepMax, 'a stalled frame dropped the fill in one go');
+    run(field, SECOND);
+    assert.equal(field.fill[inside], 0);
+  });
+});
+
+test('the fill rises with the field on load instead of starting at full', () => {
+  withParams({ ...holeParams(0, 0, 0), cutFade: 0.1 }, () => {
+    const field = createField(4, 30, 20, ASPECT);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 15, y1: 10 }]);
+    field.step(STEP);
+    assert.ok(field.fill[7 * 30 + 8] < 0.2, `fill at ${field.fill[7 * 30 + 8]} after one tick`);
   });
 });

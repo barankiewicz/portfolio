@@ -48,9 +48,13 @@
     greyMid: 4, greyBright: 6,                 // tone at which the mid grey and white start
     greys: [123, 199, 255],
     /* Cutouts: holes the field leaves around the page's text. Padding is
-     * in cells on top of snapping outward; rag lets each row and column
-     * of the edge stick out by up to that many more cells. */
-    cutPadX: 2, cutPadY: 0, cutRag: 0
+     * in cells on top of snapping outward, per side; rag lets each row
+     * and column of that side's edge stick out by up to that many more
+     * cells. The fill is the hole's grey (0 is the stage black) and fades
+     * over cutFade seconds as a hole opens or closes. */
+    cutPadL: 2, cutPadR: 2, cutPadT: 0, cutPadB: 0,
+    cutRagL: 0, cutRagR: 0, cutRagT: 0, cutRagB: 0,
+    cutFill: 0, cutFade: 0.4
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
@@ -204,7 +208,7 @@
     var f = {
       seed: seed | 0, cols: 0, rows: 0, aspect: aspect || 1,
       real: 0, time: 0,
-      level: null, tone: null, grey: null, glyph: null, section: null, cut: null,
+      level: null, tone: null, grey: null, glyph: null, section: null, cut: null, fill: null,
       tiles: [], waves: [makeWaves(rnd), makeWaves(rnd), makeWaves(rnd)],
       step: step, resize: resize, setCutouts: setCutouts
     };
@@ -297,16 +301,16 @@
 
     function resize(c, r){
       var n = c * r;
-      var level = new Float32Array(n), tone = new Uint8Array(n), grey = new Uint8Array(n), glyph = new Uint8Array(n);
+      var level = new Float32Array(n), tone = new Uint8Array(n), grey = new Uint8Array(n), glyph = new Uint8Array(n), fill = new Float32Array(n);
       for (var y = 0; y < Math.min(r, f.rows); y++){
         for (var x = 0; x < Math.min(c, f.cols); x++){
           var a = y * f.cols + x, b = y * c + x;
-          level[b] = f.level[a]; tone[b] = f.tone[a]; grey[b] = f.grey[a]; glyph[b] = f.glyph[a];
+          level[b] = f.level[a]; tone[b] = f.tone[a]; grey[b] = f.grey[a]; glyph[b] = f.glyph[a]; fill[b] = f.fill[a];
         }
       }
       f.cols = c; f.rows = r;
       f.section = new Uint8Array(n); f.shape = new Float32Array(n); f.weight = new Float32Array(n);
-      f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph;
+      f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph; f.fill = fill;
       buildTiles(f.tiles);
       cutHoles();
     }
@@ -317,15 +321,18 @@
      * the cell grid and no glyph sits half inside it. Covering is instant:
      * everything under a hole is emptied on the call, not on the next
      * tick. Uncovering is not special: the cells start from empty and
-     * rise under the usual one-tone-per-tick slew. */
+     * rise under the usual one-tone-per-tick slew. Only the hole's fill
+     * eases, in step, since a grey panel popping in would be a yank. */
     function setCutouts(list){
       cutouts = list || [];
       cutHoles();
     }
     /* How far one row or column of an edge sticks out: along is the row
-     * or column, edge is where that edge sits, side which of the four. */
+     * or column, edge is where that edge sits, side is left, right, top
+     * or bottom. */
     function ragAt(along, edge, side){
-      return Math.floor(hash3(f.seed, along, edge, 20 + side) * (Math.floor(PARAMS.cutRag) + 1));
+      var P = PARAMS, rag = [P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB][side];
+      return Math.floor(hash3(f.seed, along, edge, 20 + side) * (Math.floor(rag) + 1));
     }
     function cutHoles(){
       var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows);
@@ -335,16 +342,14 @@
       }
       for (var k = 0; k < cutouts.length; k++){
         var r = cutouts[k];
-        var x0 = Math.floor(r.x0 - P.cutPadX), x1 = Math.ceil(r.x1 + P.cutPadX);
-        var y0 = Math.floor(r.y0 - P.cutPadY), y1 = Math.ceil(r.y1 + P.cutPadY);
+        var x0 = Math.floor(r.x0 - P.cutPadL), x1 = Math.ceil(r.x1 + P.cutPadR);
+        var y0 = Math.floor(r.y0 - P.cutPadT), y1 = Math.ceil(r.y1 + P.cutPadB);
         if (x1 <= 0 || y1 <= 0 || x0 >= cols || y0 >= rows) continue;
         fill(x0, y0, x1, y1);
         /* Rag is hashed from the edge's own position, so a box that has
          * not moved keeps the same outline. */
-        if (P.cutRag >= 1){
-          for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1), y + 1); }
-          for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3)); }
-        }
+        for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1), y + 1); }
+        for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3)); }
       }
       for (var i = 0; i < cut.length; i++) if (cut[i]){ f.level[i] = 0; f.tone[i] = 0; f.grey[i] = 0; f.glyph[i] = 0; }
       for (var ti = 0; ti < f.tiles.length; ti++){
@@ -384,9 +389,12 @@
       var cap = toneStep * 0.95;
       var gain = f.real < INTRO ? easeInOutSine(f.real / INTRO) : 1;
       var rise = Math.min(P.rise * dt, cap), fall = Math.min(P.fall * dt, cap);
+      var fillStep = dt / P.cutFade;
       for (var y = 0; y < f.rows; y++){
         for (var x = 0; x < f.cols; x++){
           var i = y * f.cols + x, sec = f.section[i];
+          var want = f.cut[i] ? gain : 0;
+          f.fill[i] = want > f.fill[i] ? Math.min(want, f.fill[i] + fillStep) : Math.max(want, f.fill[i] - fillStep);
           f.shape[i] = shapeAt(sec, x, y);
           f.weight[i] = weightAt(x, y) * gain;
           var target = Math.min(1, f.shape[i] * f.weight[i]), v = f.level[i];
