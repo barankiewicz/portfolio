@@ -608,7 +608,7 @@
     return p * (2 - p);
   }
 
-  var api = { sweepBands: sweepBands, bandAt: bandAt, createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
+  var api = { sweepBands: sweepBands, bandAt: bandAt, createField: createField, mulberry32: mulberry32, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER === */
