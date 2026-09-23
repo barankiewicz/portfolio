@@ -322,8 +322,10 @@
       cutouts = list || [];
       cutHoles();
     }
-    function ragAt(a, b, side){
-      return Math.floor(hash3(f.seed, a, b, 20 + side) * (Math.floor(PARAMS.cutRag) + 1));
+    /* How far one row or column of an edge sticks out: along is the row
+     * or column, edge is where that edge sits, side which of the four. */
+    function ragAt(along, edge, side){
+      return Math.floor(hash3(f.seed, along, edge, 20 + side) * (Math.floor(PARAMS.cutRag) + 1));
     }
     function cutHoles(){
       var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows);
