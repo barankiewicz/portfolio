@@ -587,16 +587,47 @@
    * Measured in viewport px, handed to the model in cells.
    *
    * Inside an element marked data-cutout-clip (a scrolling page) holes
-   * are cut to that element's box, so a block scrolled under its edge
-   * takes only the visible part of its hole.
+   * are cut to that element's box, less its --clip-top, so a block
+   * scrolled under the nav takes only the visible part of its hole.
    *
-   * An element also marked data-sweep opens and closes along its width,
-   * driven by two numbers in its CSS, --cut and --txt, from 0 to 1. A
-   * front travels from the element's left edge to its right edge plus
-   * the hole's right padding: behind the --cut front the hole is soft
-   * and the field erodes out of it; behind the --txt front it is hard.
-   * The page CSS masks the text to the --txt front less --cut-pad, which
-   * is set here, so text never shows where the hole is not yet hard. */
+   * An element also marked data-sweep opens and closes in bands one cell
+   * row tall, driven by two timelines in its CSS, --cut and --txt, from
+   * 0 to 1. Each band opens over its own window of the timeline
+   * (sweepBands), from the element's left edge to its right edge plus the
+   * hole's right padding. How far a band is open on --cut is soft hole,
+   * the field eroding out of it; on --txt it is hard hole. The text mask
+   * is written here from the same bands, one layer per band sized by the
+   * same --txt expression, so text only ever shows where its band's hole
+   * is hard. */
+  var sweeps = new WeakMap(), sweepSeq = 0;
+  function num(v){ return +v.toFixed(4); }
+  function bandsFor(el, e){
+    var P = PARAMS, st = sweeps.get(el);
+    if (!st) sweeps.set(el, st = { seed: 0x2545f491 ^ (++sweepSeq * 0x9e3779b1), key: '' });
+    var key = Math.round(e.width) + 'x' + Math.round(e.height) + ',' + CH + ',' + [P.bandShuffle, P.bandLength, P.bandJitter].join();
+    if (st.key === key) return st;
+    st.key = key;
+    /* Bands start on the cell grid where the element sits now, so their
+     * edges are the jagged teeth; scrolling carries them with it. */
+    st.phase = ((e.top % CH) + CH) % CH;
+    st.bands = sweepBands(st.seed, Math.ceil((e.height + st.phase) / CH), P);
+    if (!reduce){
+      var img = [], size = [], pos = [];
+      for (var i = 0; i < st.bands.length; i++){
+        var a = num(st.bands[i][0]), w = num(st.bands[i][1] - st.bands[i][0]);
+        var q = 'clamp(0, (var(--txt) - ' + a + ') / ' + w + ', 1)';
+        img.push('linear-gradient(#000,#000)');
+        size.push('calc(' + q + ' * (2 - ' + q + ') * (100% + var(--cut-pad, 96px))) ' + CH + 'px');
+        pos.push('0 ' + (i * CH - st.phase) + 'px');
+      }
+      var cs = el.style;
+      cs.webkitMaskImage = cs.maskImage = img.join();
+      cs.webkitMaskSize = cs.maskSize = size.join();
+      cs.webkitMaskPosition = cs.maskPosition = pos.join();
+      cs.webkitMaskRepeat = cs.maskRepeat = 'no-repeat';
+    }
+    return st;
+  }
   var range = document.createRange(), watched = new WeakSet();
   var resizeWatch = window.ResizeObserver ? new ResizeObserver(function(){ sync(); }) : null;
   function boxOf(el){
@@ -607,8 +638,18 @@
     }
     return { left: x0, top: y0, right: x1, bottom: y1, width: x1 - x0, height: y1 - y0 };
   }
+  var clips = new Map();
+  function clipBox(el){
+    var c = clips.get(el);
+    if (!c){
+      var r = el.getBoundingClientRect(), top = parseFloat(getComputedStyle(el).getPropertyValue('--clip-top')) || 0;
+      clips.set(el, c = { left: r.left, top: r.top + top, right: r.right, bottom: r.bottom });
+    }
+    return c;
+  }
   function measure(){
     var els = document.querySelectorAll('[data-cutout]'), out = [], pad = PARAMS.cutPadR * CW;
+    clips.clear();
     for (var i = 0; i < els.length; i++){
       var el = els[i], rects;
       if (resizeWatch && !watched.has(el)){ resizeWatch.observe(el); watched.add(el); }
@@ -616,27 +657,36 @@
       if (mode === 'box') rects = [boxOf(el)];
       else { range.selectNodeContents(el); rects = mode === 'block' ? [range.getBoundingClientRect()] : range.getClientRects(); }
       if (!rects.length || !(rects[0].width > 0)) continue;
-      var clip = el.closest('[data-cutout-clip]'), c = clip && clip.getBoundingClientRect();
-      var sweep = el.hasAttribute('data-sweep'), fronts = null;
-      if (sweep){
-        var st = getComputedStyle(el), cut = parseFloat(st.getPropertyValue('--cut')), txt = parseFloat(st.getPropertyValue('--txt'));
-        var e = mode === 'box' ? rects[0] : el.getBoundingClientRect(), span = e.width + pad;
+      var clip = el.closest('[data-cutout-clip]'), c = clip && clipBox(clip);
+      var sweep = null, e, cut = 1, txt = 1;
+      if (el.hasAttribute('data-sweep')){
+        var cs = getComputedStyle(el);
+        cut = parseFloat(cs.getPropertyValue('--cut')); txt = parseFloat(cs.getPropertyValue('--txt'));
         if (isNaN(cut)) cut = 1;
         if (isNaN(txt)) txt = 1;
-        fronts = [[e.left + span * txt, false]];
-        if (cut > txt) fronts.push([e.left + span * cut, true]);
+        e = mode === 'box' ? rects[0] : el.getBoundingClientRect();
+        sweep = bandsFor(el, e);
       }
       for (var k = 0; k < rects.length; k++){
         var r = rects[k], x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom;
         if (c){ x0 = Math.max(x0, c.left); y0 = Math.max(y0, c.top); x1 = Math.min(x1, c.right); y1 = Math.min(y1, c.bottom); }
         if (!(x1 > x0 && y1 > y0)) continue;
-        if (!fronts){ out.push({ x0: x0 / CW, y0: y0 / CH, x1: x1 / CW, y1: y1 / CH }); continue; }
-        /* The hole's right edge, padding included, stops at the front. */
-        for (var f = 0; f < fronts.length; f++){
-          var edge = Math.min(x1 + pad, fronts[f][0]);
-          if (edge <= x0) continue;
-          var right = Math.min(x1, edge);
-          out.push({ x0: x0 / CW, y0: y0 / CH, x1: right / CW, y1: y1 / CH, padR: (edge - right) / CW, soft: fronts[f][1] });
+        if (!sweep){ out.push({ x0: x0 / CW, y0: y0 / CH, x1: x1 / CW, y1: y1 / CH }); continue; }
+        /* Each band's hole, padding included, stops at that band's front:
+         * hard as far as --txt has opened it, soft on to --cut. */
+        var top = e.top - sweep.phase, span = e.width + pad;
+        for (var b = 0; b < sweep.bands.length; b++){
+          var by0 = Math.max(y0, top + b * CH), by1 = Math.min(y1, top + (b + 1) * CH);
+          if (by1 <= by0) continue;
+          var hard = bandAt(sweep.bands[b], txt), soft = bandAt(sweep.bands[b], cut);
+          for (var f = 0; f < 2; f++){
+            var o = f ? soft : hard;
+            if (f && soft <= hard) break;
+            var edge = Math.min(x1 + pad, e.left + span * o);
+            if (edge <= x0) continue;
+            var right = Math.min(x1, edge);
+            out.push({ x0: x0 / CW, y0: by0 / CH, x1: right / CW, y1: by1 / CH, padR: (edge - right) / CW, soft: !!f });
+          }
         }
       }
     }

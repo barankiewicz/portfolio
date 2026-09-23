@@ -54,7 +54,7 @@
   /* Content pages: how far each stratum steps right (whole cells), and
      the sweep that opens and closes their holes. */
   --step: 72px;
-  --sweep: .7s;               /* one front crossing a block */
+  --sweep: .9s;               /* all of a block's bands opening */
   --lag: .7s;                 /* text behind the erosion; at least the field's 6 ticks to empty */
   --stagger: 70ms;            /* between blocks opening together */
   --shut: .32s;               /* text wiping out on close */
@@ -78,15 +78,20 @@ body{
 ::selection{background:var(--accent);color:var(--bg)}
 body.page-open .hero{display:none}
 
-/* A page scrolls in its own box under the nav, so text never runs
-   under the menu, and its holes are cut to that box (data-cutout-clip).
+/* A page scrolls in a box the size of the screen, so a wheel or a
+   swipe anywhere scrolls it, but everything above --page-top (the nav's
+   strip) is masked out, bar the scrollbar, so text never runs under the
+   menu. Its holes are cut the same way (data-cutout-clip, --clip-top).
    script.js sets --page-top and --rail-x from where the nav landed. */
 .page{display:none}
 .page.active{
   display:block;
-  position:fixed;top:var(--page-top, 120px);left:0;right:0;bottom:0;z-index:2;
+  position:fixed;inset:0;z-index:2;
   overflow-y:auto;overscroll-behavior:contain;
-  padding:48px var(--edge) 160px var(--rail-x, var(--edge));
+  padding:calc(var(--page-top, 120px) + 48px) var(--edge) 160px var(--rail-x, var(--edge));
+  --clip-top:var(--page-top, 120px);
+  -webkit-mask:linear-gradient(#000,#000) 0 var(--page-top, 120px) / 100% 100% no-repeat, linear-gradient(#000,#000) right 0 top 0 / 8px 100% no-repeat;
+  mask:linear-gradient(#000,#000) 0 var(--page-top, 120px) / 100% 100% no-repeat, linear-gradient(#000,#000) right 0 top 0 / 8px 100% no-repeat;
   font-family:var(--hero-font);font-size:1rem;
   color:var(--text-primary);
   scrollbar-width:thin;scrollbar-color:#444 transparent;
@@ -402,30 +407,31 @@ nav > *{pointer-events:auto}
 .channel-item .clabel{display:inline-block;margin-bottom:6px;letter-spacing:.16em}
 
 /* === SWEEP ===
-   How a hole opens: a front leaves its jagged left edge and travels to
-   its right edge. Behind --cut the field erodes out of the hole under
-   its own slew; --lag later the --txt front follows, the hole goes hard
-   and the text wipes in behind it (field.js reads both numbers every
-   frame). Closing runs the other way: the text wipes out first, then
-   the hole retreats to its edge and the field grows back. The same
-   motion opens a route, closes one, and reveals a block scrolled into
-   view. The timings are custom properties so the tuning page can drive
-   them. */
+   How a hole opens: in bands one cell row tall, the rows of its jagged
+   left edge, each sliding out from its own tooth over its own slice of
+   the timeline, out of order like a torn scanline. --cut runs the
+   timeline for the hole, soft, so the field erodes out of each band
+   under its own slew; --lag later --txt runs it again and each band
+   goes hard with its slice of text. field.js works out the bands and
+   writes each block's text mask from them. Closing plays both
+   timelines back, text first. Route open, route close and scroll reveal
+   are this one motion. Timelines are linear: the easing is per band.
+   Until field.js has banded a block its text stays masked out. */
 @property --cut{syntax:'<number>';inherits:false;initial-value:0}
 @property --txt{syntax:'<number>';inherits:false;initial-value:0}
 .js [data-sweep]{
   --cut:0;--txt:0;
-  -webkit-mask-image:linear-gradient(90deg, #000 calc(var(--txt) * (100% + var(--cut-pad, 96px)) - 48px), transparent calc(var(--txt) * (100% + var(--cut-pad, 96px))));
-  mask-image:linear-gradient(90deg, #000 calc(var(--txt) * (100% + var(--cut-pad, 96px)) - 48px), transparent calc(var(--txt) * (100% + var(--cut-pad, 96px))));
+  -webkit-mask:linear-gradient(#000,#000) 0 0 / 0 0 no-repeat;
+  mask:linear-gradient(#000,#000) 0 0 / 0 0 no-repeat;
   transition:
-    --txt var(--shut) var(--sweep-ease) calc(var(--i, 0) * 30ms),
-    --cut calc(var(--shut) * 1.4) var(--sweep-ease) calc(var(--i, 0) * 30ms + var(--shut) * .4);
+    --txt var(--shut) linear calc(var(--i, 0) * 30ms),
+    --cut calc(var(--shut) * 1.4) linear calc(var(--i, 0) * 30ms + var(--shut) * .4);
 }
 .js [data-sweep].open{
   --cut:1;--txt:1;
   transition:
-    --cut var(--sweep) var(--sweep-ease) calc(var(--i, 0) * var(--stagger)),
-    --txt var(--sweep) var(--sweep-ease) calc(var(--i, 0) * var(--stagger) + var(--lag));
+    --cut var(--sweep) linear calc(var(--i, 0) * var(--stagger)),
+    --txt var(--sweep) linear calc(var(--i, 0) * var(--stagger) + var(--lag));
 }
 .js.no-sweep [data-sweep],.js.no-sweep [data-sweep].open{transition:none}
 
@@ -448,7 +454,7 @@ footer{
 /* === REDUCED MOTION ===
    Holes and text are simply there; routes swap with no sweep. */
 @media (prefers-reduced-motion: reduce){
-  .js [data-sweep]{--cut:1;--txt:1;transition:none}
+  .js [data-sweep]{--cut:1;--txt:1;transition:none;-webkit-mask:none;mask:none}
   .js .nav-left,.js .hero-content{transition:none}
 }
 

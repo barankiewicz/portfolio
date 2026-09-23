@@ -8,9 +8,9 @@
   var firstLink = document.querySelector('.nav-links a');
 
   /* === PAGE BOX ===
-   * A page scrolls in a box that starts under the nav, and its text
-   * starts where the nav's does, wherever the nav wrapped or was nudged
-   * to. */
+   * A page's content starts under the nav (everything above --page-top
+   * is masked out of it) and its text starts where the nav's does,
+   * wherever the nav wrapped or was nudged to. */
   function placePages(){
     root.style.setProperty('--page-top', Math.ceil(navLeft.getBoundingClientRect().bottom + 8) + 'px');
     root.style.setProperty('--rail-x', Math.round(firstLink.getBoundingClientRect().left) + 'px');
@@ -18,6 +18,13 @@
   if (window.ResizeObserver) new ResizeObserver(placePages).observe(navLeft);
   window.addEventListener('resize', placePages);
   placePages();
+
+  /* Nothing locks scrolling: the page box covers the whole screen, and a
+   * wheel over the nav, which sits above it, is handed on to the page. */
+  document.getElementById('nav').addEventListener('wheel', function(e){
+    var page = document.querySelector('.page.active');
+    if (page) page.scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY);
+  }, { passive: true });
 
   /* === STRATA ===
    * Every [data-sweep] element opens with the sweep in style.css when it
