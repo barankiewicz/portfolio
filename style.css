@@ -1,10 +1,6 @@
 /* === FONTS ===
    Served from the site rather than Google Fonts, so browsers that block
    third-party fonts still get the real faces. Latin and latin-ext only. */
-@font-face{font-family:'Inter';font-style:normal;font-weight:300 800;font-display:swap;src:url(fonts/inter-ext-300-800.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
-@font-face{font-family:'Inter';font-style:normal;font-weight:300 800;font-display:swap;src:url(fonts/inter-300-800.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
-@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 700;font-display:swap;src:url(fonts/jetbrains-mono-ext-400-700.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
-@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 700;font-display:swap;src:url(fonts/jetbrains-mono-400-700.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
 @font-face{font-family:'Geist';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-ext-100-900.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
 @font-face{font-family:'Geist';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-100-900.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
 @font-face{font-family:'Geist Mono';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-mono-ext-100-900.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
@@ -14,6 +10,7 @@
 :root {
   --bg: #000;
   --border: #333;
+  --line-strong: #555;        /* rules and separators inside a hole */
   --text-muted: #9A9A9A;
   --text-secondary: #B8B8B8;
   --text-primary: #EDEDED;
@@ -66,7 +63,7 @@ html{scroll-behavior:smooth;overflow-x:hidden}
 
 /* === BODY / LAYOUT === */
 body{
-  font-family:'Inter',sans-serif;
+  font-family:var(--hero-font);
   font-size:1.1rem;
   background:var(--bg);
   color:var(--tone);
@@ -235,11 +232,7 @@ nav > *{pointer-events:auto}
   padding-block:.12em;margin-block:-.12em;
 }
 .strata > .page-title{margin-top:0}
-.page-sub{
-  margin-top:28px;
-  font-family:var(--console-font);font-size:.95rem;letter-spacing:.04em;
-  color:var(--text-muted);
-}
+.page-sub{margin-top:28px;font-size:1.15rem;color:var(--text-muted)}
 .strata-head{
   margin-top:112px;margin-bottom:-8px;
   font-family:var(--console-font);font-weight:500;
@@ -270,83 +263,55 @@ nav > *{pointer-events:auto}
   font-weight:600;font-size:1.45rem;line-height:1.2;letter-spacing:-.015em;
   color:var(--text-primary);
 }
-.tl-company{
-  margin-top:6px;
-  font-family:var(--console-font);font-size:.85rem;
-  letter-spacing:.14em;text-transform:uppercase;
-  color:var(--text-muted);
-}
+.tl-company{margin-top:4px;font-size:1rem;color:var(--text-muted)}
 .tl-item p:last-child{margin-top:16px;font-size:1.02rem;line-height:1.6;color:var(--text-secondary)}
 
-.skills-cat h4{
-  font-family:var(--console-font);font-weight:500;font-size:.85rem;
-  letter-spacing:.16em;text-transform:uppercase;
-  color:var(--text-secondary);
-  margin-bottom:16px;
-}
-.skill-blocks{display:flex;flex-wrap:wrap;gap:6px}
-.skill-block{
-  font-family:var(--console-font);font-size:.85rem;
-  padding:7px 12px;
-  border:1px solid #555;
-  color:var(--text-primary);
-}
-.skill-block.solid{background:var(--text-primary);border-color:var(--text-primary);color:var(--bg)}
+.skills-cat h4{margin-bottom:10px;font-weight:500;font-size:1.15rem;color:var(--text-primary)}
+/* A run of names; the core ones (.solid) at full white, the rest a step down */
+.skill-blocks{font-size:1.05rem;line-height:1.7;color:var(--text-muted)}
+.skill-block.solid{color:var(--text-primary);font-weight:500}
+
 
 /* === PROJECTS & WORK ===
-   A project is three strata: its plate, its head, its notes. */
-.proj-plate{width:calc(var(--col) + var(--step));padding:16px 16px 16px calc(var(--nav-pad) * 1px)}
+   A project is three strata: its plate, its head, its notes. The plate
+   has no frame of its own: the hole is the frame. The screenshot shows
+   through a dither in the field's own three greys at the field's 2px
+   pixel (script.js draws it), and resolves to the plain greyscale shot
+   while the link is hovered or focused. */
+.proj-plate{width:calc(var(--col) + var(--step));padding:16px 16px 14px calc(var(--nav-pad) * 1px)}
 .proj-shot-link{display:block;text-decoration:none;color:inherit}
-.proj-img-wrap{position:relative;overflow:hidden;background:var(--bg);border:1px solid var(--border);transition:border-color .3s}
-.proj-shot-link:hover .proj-img-wrap{border-color:var(--text-muted)}
-.proj-browser-bar{display:flex;align-items:center;gap:5px;padding:9px 10px;border-bottom:1px solid var(--border)}
-.proj-dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0}
+.proj-shot{position:relative;aspect-ratio:16/10;overflow:hidden;background:var(--bg)}
+.proj-shot img,.proj-dither{position:absolute;inset:0;display:block;width:100%;height:100%}
+.proj-shot img{object-fit:cover;object-position:top;filter:grayscale(1) contrast(1.06)}
+.proj-dither{image-rendering:pixelated;opacity:0;transition:opacity .45s cubic-bezier(.65,0,.35,1)}
+.proj-dither.ready{opacity:1}
+.proj-shot-link:hover .proj-dither,.proj-shot-link:focus-visible .proj-dither{opacity:0}
+.proj-img-placeholder{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--console-font);font-size:.8rem;
+  color:var(--text-muted);
+}
+.proj-caption{display:flex;justify-content:space-between;gap:16px;align-items:baseline;margin-top:12px}
 .proj-url{
-  margin-left:6px;
-  font-family:var(--console-font);font-size:.72rem;letter-spacing:.02em;
+  font-family:var(--console-font);font-size:.85rem;
   color:var(--text-muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.proj-shot{position:relative;aspect-ratio:16/10;overflow:hidden}
-/* One committed look: the screenshots lose their hue like everything else. */
-.proj-shot img{
-  display:block;width:100%;height:100%;object-fit:cover;
-  filter:grayscale(1) contrast(1.06);
-  transition:transform .8s cubic-bezier(.16,1,.3,1);
-}
-.proj-shot-link:hover .proj-shot img{transform:scale(1.03)}
-.proj-img-placeholder{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:var(--console-font);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--text-muted);
-}
 .proj-visit{
-  position:absolute;right:12px;bottom:12px;
-  padding:8px 14px;
-  font-family:var(--console-font);font-size:.72rem;font-weight:500;
-  letter-spacing:.1em;text-transform:uppercase;
-  background:var(--text-primary);color:var(--bg);
-  opacity:0;transform:translateY(6px);
-  transition:opacity .25s,transform .25s cubic-bezier(.16,1,.3,1);
+  flex-shrink:0;
+  font-size:.95rem;color:var(--text-primary);
+  text-decoration-thickness:1px;text-underline-offset:.2em;
 }
-.proj-shot-link:hover .proj-visit,.proj-shot-link:focus-visible .proj-visit{opacity:1;transform:none}
-@media (hover:none){
-  .proj-visit{position:static;display:inline-block;margin:10px;opacity:1;transform:none}
-}
+.proj-shot-link:hover .proj-visit{text-decoration-line:underline}
 
-.proj-client{
-  font-family:var(--console-font);font-size:.8rem;
-  letter-spacing:.16em;text-transform:uppercase;
-  color:var(--text-muted);
-}
-.proj-title-row{display:flex;align-items:center;gap:6px;margin-top:10px}
-.proj-head h4,.work-card h4{
+.proj-title-row{display:flex;align-items:center;gap:6px}
+.proj-head h3,.work-card h3{
   font-weight:500;font-size:2.2rem;line-height:1.05;letter-spacing:-.03em;
   color:var(--text-primary);
 }
-.work-card h4{margin-top:10px;font-size:1.8rem}
-.proj-head h4 a{color:inherit;text-decoration:none;text-decoration-thickness:1px;text-underline-offset:.15em}
-.proj-head h4 a:hover{text-decoration-line:underline}
+.work-card h3{font-size:1.8rem}
+.proj-head h3 a{color:inherit;text-decoration:none;text-decoration-thickness:1px;text-underline-offset:.15em}
+.proj-head h3 a:hover{text-decoration-line:underline}
 .proj-gh-link{
   display:inline-flex;align-items:center;justify-content:center;
   width:44px;height:44px;flex-shrink:0;
@@ -355,32 +320,23 @@ nav > *{pointer-events:auto}
 }
 .proj-gh-link:hover{color:var(--accent)}
 .proj-gh-icon{display:block;width:20px;height:20px}
-.proj-tagline{margin-top:10px;font-size:1.15rem;line-height:1.45;color:var(--text-primary)}
+/* What kind of thing it is, said after its name rather than over it */
+.proj-client{margin-top:6px;font-size:1rem;color:var(--text-muted)}
+.proj-tagline{margin-top:14px;font-size:1.15rem;line-height:1.45;color:var(--text-primary)}
 .proj-head p:last-child,.work-card > p:not([class]){margin-top:14px;font-size:1rem;line-height:1.6;color:var(--text-secondary)}
 
-.proj-subhead{
-  margin:24px 0 10px;
-  font-family:var(--console-font);font-size:.75rem;
-  letter-spacing:.18em;text-transform:uppercase;
-  color:var(--text-muted);
-}
+.proj-subhead{margin:24px 0 8px;font-weight:500;font-size:.95rem;color:var(--text-muted)}
 .proj-notes > .proj-subhead:first-child{margin-top:0}
-.proj-tags{display:flex;flex-wrap:wrap;gap:6px}
-.work-card .proj-tags{margin-top:18px}
-.proj-tag{
-  padding:5px 10px;
-  font-family:var(--console-font);font-size:.78rem;
-  border:1px solid #444;
-  color:var(--text-primary);
-}
-.proj-learned{padding-left:16px;border-left:1px solid #555}
+/* A stack reads as a line of names, not a cloud of boxes */
+.proj-tags{font-size:1rem;line-height:1.6;color:var(--text-primary)}
+.work-card .proj-tags{margin-top:16px}
+/* the dot rides on the name before it, so a wrapped line never starts with one */
+.proj-tag:not(:last-child)::after,.skill-block:not(:last-child)::after{content:"·";content:"·" / "";margin-left:.45em;color:var(--text-muted);font-weight:400}
+.skill-block{white-space:nowrap}
+.proj-learned{padding-left:16px;border-left:1px solid var(--line-strong)}
 .proj-learned p{font-size:1rem;line-height:1.55;color:var(--text-secondary)}
 .proj-learned p + p{margin-top:8px}
-.proj-result{
-  margin-top:20px;
-  font-family:var(--console-font);font-size:.85rem;line-height:1.5;
-  color:var(--text-primary);
-}
+.proj-result{margin-top:20px;font-size:1rem;line-height:1.5;color:var(--text-primary)}
 
 /* === CONTACT === */
 .contact-intro{font-size:1.2rem;line-height:1.6;color:var(--text-primary)}
@@ -390,6 +346,9 @@ nav > *{pointer-events:auto}
   text-decoration:none;
   color:var(--text-primary);
 }
+/* The link is its own stratum, and its sweep mask clips anything outside
+   its box, so its focus ring goes inside. */
+.channel-item:focus-visible{outline-offset:-6px}
 .channel-item > div{
   font-family:var(--hero-font);font-weight:500;
   font-size:clamp(1.4rem, 3vw, 2.4rem);line-height:1.15;letter-spacing:-.02em;
@@ -397,13 +356,9 @@ nav > *{pointer-events:auto}
   text-decoration-thickness:1px;text-underline-offset:.18em;
 }
 .channel-item:hover > div{color:var(--accent);text-decoration-line:underline}
-.channel-num,.channel-item .clabel{
-  font-family:var(--console-font);font-weight:400;font-size:.8rem;
-  letter-spacing:.16em;text-transform:uppercase;
-  color:var(--text-muted);
-}
+.channel-num{font-family:var(--console-font);font-size:.85rem;font-variant-numeric:tabular-nums;color:var(--text-muted)}
 /* inline-block stops the value's hover underline running through it */
-.channel-item .clabel{display:inline-block;margin-bottom:6px;letter-spacing:.16em}
+.channel-item .clabel{display:inline-block;margin-bottom:4px;font-family:var(--hero-font);font-weight:400;font-size:1rem;letter-spacing:0;color:var(--text-muted)}
 
 /* === SWEEP ===
    How a hole opens: in bands one cell row tall, the rows of its jagged
@@ -439,7 +394,7 @@ footer{
   position:fixed;bottom:0;left:0;right:0;z-index:2;
   padding:24px 48px;
   border-top:1px solid var(--border);
-  font-family:'JetBrains Mono',monospace;
+  font-family:var(--console-font);
   font-size:.65rem;
   color:var(--text-muted);
   text-align:center;
@@ -454,13 +409,13 @@ footer{
    Holes and text are simply there; routes swap with no sweep. */
 @media (prefers-reduced-motion: reduce){
   .js [data-sweep]{--cut:1;--txt:1;transition:none;-webkit-mask:none;mask:none}
-  .js .nav-left,.js .hero-content{transition:none}
+  .js .nav-left,.js .hero-content,.proj-dither{transition:none}
 }
 
 /* === RESPONSIVE === */
 @media(max-width:1024px){
   :root{--edge:32px;--step:48px}
-  .proj-head h4{font-size:1.9rem}
+  .proj-head h3{font-size:1.9rem}
   footer{padding:16px 32px;font-size:.6rem}
 }
 @media(max-width:720px){
@@ -469,8 +424,8 @@ footer{
   .strata-head{margin-top:88px}
   .cv-intro p,.contact-intro{font-size:1.1rem}
   .tl-item h4{font-size:1.3rem}
-  .proj-head h4{font-size:1.7rem}
-  .work-card h4{font-size:1.5rem}
+  .proj-head h3{font-size:1.7rem}
+  .work-card h3{font-size:1.5rem}
   footer{padding:12px 24px;font-size:.6rem}
 }
 @media(max-width:480px){
