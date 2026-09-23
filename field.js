@@ -46,7 +46,11 @@
     curve: 1.3,                                // below 1 favours dense glyphs, above 1 sparse ones
     dither: 0.7,                               // each cell's brightness scaled by up to +-dither/2, fixed per cell
     greyMid: 4, greyBright: 6,                 // tone at which the mid grey and white start
-    greys: [123, 199, 255]
+    greys: [123, 199, 255],
+    /* Cutouts: holes the field leaves around the page's text. Padding is
+     * in cells on top of snapping outward; rag lets each row and column
+     * of the edge stick out by up to that many more cells. */
+    cutPadX: 1, cutPadY: 0.5, cutRag: 0
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
@@ -200,11 +204,11 @@
     var f = {
       seed: seed | 0, cols: 0, rows: 0, aspect: aspect || 1,
       real: 0, time: 0,
-      level: null, tone: null, grey: null, glyph: null, section: null,
+      level: null, tone: null, grey: null, glyph: null, section: null, cut: null,
       tiles: [], waves: [makeWaves(rnd), makeWaves(rnd), makeWaves(rnd)],
-      step: step, resize: resize
+      step: step, resize: resize, setCutouts: setCutouts
     };
-    var rampGlyphs = [[], [], []], toneStep = 1;
+    var rampGlyphs = [[], [], []], toneStep = 1, cutouts = [];
 
     function toneOf(v){
       if (v < PARAMS.threshold) return 0;
@@ -304,6 +308,63 @@
       f.section = new Uint8Array(n); f.shape = new Float32Array(n); f.weight = new Float32Array(n);
       f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph;
       buildTiles(f.tiles);
+      cutHoles();
+    }
+
+    /* === CUTOUTS ===
+     * Boxes in cell units (fractions allowed) where the field draws
+     * nothing. A box covers every cell it touches, so the hole's edge is
+     * the cell grid and no glyph sits half inside it. Covering is instant:
+     * everything under a hole is emptied on the call, not on the next
+     * tick. Uncovering is not special: the cells start from empty and
+     * rise under the usual one-tone-per-tick slew. */
+    function setCutouts(list){
+      cutouts = list || [];
+      cutHoles();
+    }
+    function ragAt(a, b, side){
+      return Math.floor(hash3(f.seed, a, b, 20 + side) * (Math.floor(PARAMS.cutRag) + 1));
+    }
+    function cutHoles(){
+      var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows);
+      function fill(x0, y0, x1, y1){
+        x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(cols, x1); y1 = Math.min(rows, y1);
+        for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) cut[y * cols + x] = 1;
+      }
+      for (var k = 0; k < cutouts.length; k++){
+        var r = cutouts[k];
+        var x0 = Math.floor(r.x0 - P.cutPadX), x1 = Math.ceil(r.x1 + P.cutPadX);
+        var y0 = Math.floor(r.y0 - P.cutPadY), y1 = Math.ceil(r.y1 + P.cutPadY);
+        if (x1 <= 0 || y1 <= 0 || x0 >= cols || y0 >= rows) continue;
+        fill(x0, y0, x1, y1);
+        /* Rag is hashed from the edge's own position, so a box that has
+         * not moved keeps the same outline. */
+        if (P.cutRag >= 1){
+          for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1), y + 1); }
+          for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3)); }
+        }
+      }
+      for (var i = 0; i < cut.length; i++) if (cut[i]){ f.level[i] = 0; f.tone[i] = 0; f.grey[i] = 0; f.glyph[i] = 0; }
+      for (var ti = 0; ti < f.tiles.length; ti++){
+        var t = f.tiles[ti];
+        if (t.fine) for (var q = 0; q < FINE * FINE; q++){
+          var qx = t.x * TILE + ((q % FINE) >> 1), qy = t.y * TILE + (Math.floor(q / FINE) >> 1);
+          if (qx < cols && qy < rows && cut[qy * cols + qx]){ t.fine.level[q] = 0; t.fine.tone[q] = 0; t.fine.grey[q] = 0; t.fine.glyph[q] = 0; }
+        }
+        for (var si = 0; si < LARGE.length; si++){
+          var s = LARGE[si], n = TILE / s;
+          for (var c = 0; c < n * n; c++){
+            var cell = t.cells[s][c];
+            if (inCut(t.x * TILE + (c % n) * s, t.y * TILE + Math.floor(c / n) * s, s)){ cell.glyph = cell.fromGlyph = 0; cell.grey = cell.fromGrey = 0; cell.u = 1; }
+          }
+        }
+      }
+    }
+    /* Whether a glyph of size s at (x0, y0) touches a cut cell. */
+    function inCut(x0, y0, s){
+      for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
+        for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) if (f.cut[y * f.cols + x]) return true;
+      return false;
     }
 
     function step(dtMs){
@@ -327,7 +388,8 @@
           f.shape[i] = shapeAt(sec, x, y);
           f.weight[i] = weightAt(x, y) * gain;
           var target = Math.min(1, f.shape[i] * f.weight[i]), v = f.level[i];
-          if (target > v) v = Math.min(target, v + rise);
+          if (f.cut[i]) v = 0;
+          else if (target > v) v = Math.min(target, v + rise);
           else v = Math.max(target, v - fall);
           var tone = toneOf(v);
           f.level[i] = v;
@@ -378,7 +440,8 @@
         /* The top-left quarter sits where the cell itself was sampled. */
         var shape = (sx & 1) || (sy & 1) ? shapeAt(sec, x + (sx & 1) * SMALL, y + (sy & 1) * SMALL) : f.shape[i];
         var target = Math.min(1, shape * f.weight[i]), v = q.level[k];
-        if (target > v) v = Math.min(target, v + rise);
+        if (f.cut[i]) v = 0;
+        else if (target > v) v = Math.min(target, v + rise);
         else v = Math.max(target, v - fall);
         var tone = toneOf(v);
         q.level[k] = v; q.tone[k] = tone; q.grey[k] = greyOf(tone); q.glyph[k] = glyphFor(sec, tone);
@@ -398,6 +461,7 @@
           /* A 1.5x glyph straddles cells, so take every cell it overlaps. */
           for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
             for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) v = Math.max(v, f.level[y * f.cols + x]);
+          if (inCut(x0, y0, s)){ c.glyph = c.fromGlyph = c.grey = c.fromGrey = 0; c.u = 1; continue; }
           c.u = Math.min(1, c.u + dt / PARAMS.glyphFade);
           var tone = toneOf(v), gr = greyOf(tone);
           var g = glyphFor(f.section[Math.floor(y0) * f.cols + Math.floor(x0)], tone);

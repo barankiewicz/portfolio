@@ -353,3 +353,133 @@ test('each section ramp has one glyph per tone, in a few greys up to white', () 
   assert.equal(greys[greys.length - 1], 255);
   for (let i = 1; i < greys.length; i++) assert.ok(greys[i] > greys[i - 1]);
 });
+
+/* === CUTOUTS === */
+
+const TILE = 6;
+
+// Every glyph the renderer would paint this frame, as [size, x, y, glyph]
+// in cell units, mirroring drawLayer in field.js.
+function painted(field) {
+  const out = [];
+  for (const t of field.tiles) {
+    const layers = t.from === t.to ? [t.to] : [t.from, t.to];
+    for (const s of layers) {
+      const x0 = t.x * TILE, y0 = t.y * TILE;
+      if (s === 1) {
+        for (let y = y0; y < y0 + TILE && y < field.rows; y++)
+          for (let x = x0; x < x0 + TILE && x < field.cols; x++)
+            if (field.glyph[y * field.cols + x]) out.push([1, x, y]);
+      } else if (s === 0.5) {
+        if (!t.fine) continue;
+        for (let q = 0; q < 144; q++)
+          if (t.fine.glyph[q]) out.push([0.5, x0 + (q % 12) * 0.5, y0 + Math.floor(q / 12) * 0.5]);
+      } else {
+        const n = TILE / s;
+        t.cells[s].forEach((c, k) => {
+          const x = x0 + (k % n) * s, y = y0 + Math.floor(k / n) * s;
+          if (c.glyph || (c.u < 1 && c.fromGlyph)) out.push([s, x, y]);
+        });
+      }
+    }
+  }
+  return out;
+}
+
+// Painted glyphs that overlap a cut cell by any amount.
+function paintedInCut(field) {
+  return painted(field).filter(([s, x, y]) => {
+    for (let cy = Math.floor(y); cy < y + s && cy < field.rows; cy++)
+      for (let cx = Math.floor(x); cx < x + s && cx < field.cols; cx++)
+        if (field.cut[cy * field.cols + cx]) return true;
+    return false;
+  });
+}
+
+function cutCells(field) {
+  const out = [];
+  for (let i = 0; i < field.cut.length; i++) if (field.cut[i]) out.push([i % field.cols, Math.floor(i / field.cols)]);
+  return out;
+}
+
+test('a cutout snaps outward to whole cells, then grows by its padding', () => {
+  withParams({ cutPadX: 0, cutPadY: 0, cutRag: 0 }, () => {
+    const field = createField(3, 20, 10, ASPECT);
+    field.setCutouts([{ x0: 2.3, y0: 1.5, x1: 5.1, y1: 2.2 }]);
+    const want = [];
+    for (let y = 1; y <= 2; y++) for (let x = 2; x <= 5; x++) want.push([x, y]);
+    assert.deepEqual(cutCells(field), want);
+  });
+  withParams({ cutPadX: 1, cutPadY: 1, cutRag: 0 }, () => {
+    const field = createField(3, 20, 10, ASPECT);
+    field.setCutouts([{ x0: 2, y0: 2, x1: 4, y1: 3 }]);
+    const want = [];
+    for (let y = 1; y <= 3; y++) for (let x = 1; x <= 4; x++) want.push([x, y]);
+    assert.deepEqual(cutCells(field), want);
+  });
+});
+
+test('a cutout off the edge of the screen is clipped, and none clears the mask', () => {
+  withParams({ cutPadX: 1, cutPadY: 1, cutRag: 0 }, () => {
+    const field = createField(3, 20, 10, ASPECT);
+    field.setCutouts([{ x0: -9999, y0: 0, x1: -9900, y1: 2 }, { x0: 18.5, y0: 8.5, x1: 25, y1: 12 }]);
+    assert.deepEqual(cutCells(field), [[17, 7], [18, 7], [19, 7], [17, 8], [18, 8], [19, 8], [17, 9], [18, 9], [19, 9]]);
+    field.setCutouts([]);
+    assert.equal(cutCells(field).length, 0);
+  });
+});
+
+test('nothing is painted inside a cutout at any glyph size, from the frame it appears', () => {
+  withParams({ bigAmount: 0.35, midAmount: 0.3, smallAmount: 0.3, cutPadX: 0, cutPadY: 0, cutRag: 0 }, () => {
+    const field = createField(11, 96, 54, ASPECT);
+    run(field, 8 * SECOND);
+    const sizes = new Set(painted(field).map((p) => p[0]));
+    assert.ok(sizes.size >= 3, `only sizes ${[...sizes]} on screen`);
+    field.setCutouts([{ x0: 20.5, y0: 13.2, x1: 70.7, y1: 30.9 }, { x0: 3, y0: 40, x1: 11, y1: 41 }]);
+    assert.deepEqual(paintedInCut(field), [], 'glyphs left in the hole on the frame it opened');
+    run(field, 10 * SECOND, STEP, () => assert.deepEqual(paintedInCut(field), []));
+  });
+});
+
+test('a cell uncovered by a cutout fades back in from empty, one tone per tick', () => {
+  withParams({ cutPadX: 0, cutPadY: 0, cutRag: 0 }, () => {
+    const field = createField(5, 60, 30, ASPECT);
+    run(field, 6 * SECOND);
+    field.setCutouts([{ x0: 10, y0: 5, x1: 50, y1: 25 }]);
+    run(field, SECOND);
+    field.setCutouts([]);
+    let prev = Uint8Array.from(field.tone);
+    let lit = 0;
+    run(field, 4 * SECOND, STEP, () => {
+      for (let i = 0; i < field.tone.length; i++) assert.ok(field.tone[i] - prev[i] <= 1, `cell ${i} jumped`);
+      prev = Uint8Array.from(field.tone);
+    });
+    for (let y = 5; y < 25; y++) for (let x = 10; x < 50; x++) if (field.tone[y * 60 + x]) lit++;
+    assert.ok(lit > 50, `only ${lit} cells came back`);
+  });
+});
+
+test('ragged edges: rows and columns stick out by up to cutRag cells, never into the text box', () => {
+  withParams({ cutPadX: 0, cutPadY: 0, cutRag: 2 }, () => {
+    const field = createField(9, 60, 30, ASPECT);
+    const box = { x0: 20, y0: 10, x1: 40, y1: 16 };
+    field.setCutouts([box]);
+    const cells = cutCells(field);
+    const has = new Set(cells.map(([x, y]) => x + ',' + y));
+    for (let y = 10; y < 16; y++) for (let x = 20; x < 40; x++) assert.ok(has.has(x + ',' + y), `box cell ${x},${y} not cut`);
+    for (const [x, y] of cells) assert.ok(x >= 18 && x < 42 && y >= 8 && y < 18, `${x},${y} beyond the rag`);
+    assert.ok(cells.length > 20 * 6 + 10, 'the edge is not ragged');
+    const again = createField(9, 60, 30, ASPECT);
+    again.setCutouts([box]);
+    assert.deepEqual(cutCells(again), cells, 'rag is not stable for the same box');
+  });
+});
+
+test('resize keeps cutting the same boxes', () => {
+  withParams({ cutPadX: 0, cutPadY: 0, cutRag: 0 }, () => {
+    const field = createField(3, 20, 10, ASPECT);
+    field.setCutouts([{ x0: 2, y0: 2, x1: 4, y1: 3 }]);
+    field.resize(30, 12);
+    assert.deepEqual(cutCells(field), [[2, 2], [3, 2]]);
+  });
+});
