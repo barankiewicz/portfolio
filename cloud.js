@@ -381,12 +381,15 @@
     ctx.globalAlpha = 1;
   }
   /* The field ticks: every box cell has a new tone, so the tint follows
-   * before the field draws, in the same frame. */
+   * before the field draws, in the same frame. Under reduced motion this
+   * is a settle (a resize, a font, a new hole), and with no loop here the
+   * clip redraws at once. */
   function onTick(){
     ticked = true;
     if (!ready || !box || !blending()) return;
-    stepBlend(1000 / field.params.fps);
+    stepBlend(reduce ? null : 1000 / field.params.fps);
     paintTint();
+    if (reduce) draw();
   }
 
   /* === PLAYBACK AND GLITCHES === */
@@ -473,7 +476,8 @@
    * hero's lines on a route change. all: it lives outside every route
    * and stays open, dimmed while a page is open if dim is on. */
   /* blend: under the field, before it in <body>, with no hole of its
-   * own; on 'home' it fades out while a page is open instead. */
+   * own and no sweep (the blend fades in instead); on 'home' it fades
+   * out while a page is open. */
   function place(){
     var P = PARAMS, blend = blending(), parent = P.routes === 'all' || blend ? away : home;
     if (canvas.parentNode !== parent) parent.insertBefore(canvas, parent === away ? away.firstChild : null);
@@ -481,7 +485,8 @@
     canvas.classList.toggle('dim', !!P.dim);
     canvas.classList.toggle('blend', blend);
     if (ready && blend === canvas.hasAttribute('data-cutout')){
-      if (blend) canvas.removeAttribute('data-cutout'); else canvas.setAttribute('data-cutout', 'box');
+      if (blend){ canvas.removeAttribute('data-cutout'); canvas.removeAttribute('data-sweep'); }
+      else { canvas.setAttribute('data-cutout', 'box'); canvas.setAttribute('data-sweep', ''); }
     }
     if (!blend && tinted){ tinted = null; field.tint(null); field.redraw(); }
     if (P.routes === 'all' && swept) canvas.classList.add('open');
@@ -522,13 +527,13 @@
     ready = true;
     fit();
     /* reduced motion: one settled blend frame, there is no loop */
-    if (blending() && reduce){ appear = 1; stepBlend(null); paintTint(); field.redraw(); }
+    if (reduce) appear = 1;
     draw();
-    if (!blending()) canvas.setAttribute('data-cutout', 'box');
-    canvas.setAttribute('data-sweep', '');
+    if (!blending()){ canvas.setAttribute('data-cutout', 'box'); canvas.setAttribute('data-sweep', ''); }
     if (intro){ intro.setAttribute('data-cutout', 'text'); intro.setAttribute('data-sweep', ''); }
     place();
     field.sync();
+    if (blending() && reduce){ stepBlend(null); paintTint(); field.redraw(); }
     draw();
     requestAnimationFrame(function(){
       swept = true;
@@ -544,7 +549,8 @@
     defaults: DEFAULTS,
     /* for the tuning page: a glitch now, not in a few seconds */
     glitch: function(){ if (ready && !reduce && !glitch){ startEpisode(clock); } },
-    state: function(){ return { ready: ready, clock: clock, frame: shownFrame, frames: frames.length, glitch: glitch && { at: glitch.at, bands: glitch.bands, shown: Array.from(shown) }, nextAt: nextAt, box: box && { cols: box.cols, rows: box.rows, gx: box.gx, gy: box.gy } }; }
+    state: function(){ return { ready: ready, clock: clock, frame: shownFrame, frames: frames.length, glitch: glitch && { at: glitch.at, bands: glitch.bands, shown: Array.from(shown) }, nextAt: nextAt, box: box && { cols: box.cols, rows: box.rows, gx: box.gx, gy: box.gy },
+      blend: blending() && box ? { appear: appear, show: Array.from(box.u), level: Array.from(box.level) } : null }; }
   };
 
   Promise.all([decodeFrames(), loadCells()]).then(function(res){
@@ -552,9 +558,9 @@
     count = Math.min(frames.length, Math.floor(cells.length / (SW * SH * 3)));
     frames.length = count;
     show();
+    field.ticks.push(onTick);
     if (reduce) return;
     schedule(0);
-    field.ticks.push(onTick);
     document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); else play(); });
     play();
   }).catch(function(){ canvas.remove(); });
