@@ -52,8 +52,8 @@
      * and column of that side's edge stick out by up to that many more
      * cells. The fill is the hole's grey (0 is the stage black) and fades
      * over cutFade seconds as a hole opens or closes. */
-    cutPadL: 2, cutPadR: 2, cutPadT: 0, cutPadB: 0,
-    cutRagL: 0, cutRagR: 0, cutRagT: 0, cutRagB: 0,
+    cutPadL: 1, cutPadR: 3, cutPadT: 0, cutPadB: 1,
+    cutRagL: 0, cutRagR: 2, cutRagT: 0, cutRagB: 1,
     cutFill: 0, cutFade: 0.4
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
@@ -543,9 +543,9 @@
   }
 
   /* Holes follow the elements marked data-cutout: "text" cuts around
-   * each line of the element's text, "box" around its border box (a nav
-   * link's whole touch target). Measured in viewport px, handed to the
-   * model in cells. */
+   * each line of the element's text, "block" one hole round all of it,
+   * "box" round its border box (a nav link's whole touch target).
+   * Measured in viewport px, handed to the model in cells. */
   var range = document.createRange(), watched = new WeakSet();
   var resizeWatch = window.ResizeObserver ? new ResizeObserver(function(){ sync(); }) : null;
   function measure(){
@@ -553,8 +553,9 @@
     for (var i = 0; i < els.length; i++){
       var el = els[i], rects;
       if (resizeWatch && !watched.has(el)){ resizeWatch.observe(el); watched.add(el); }
-      if (el.getAttribute('data-cutout') === 'text'){ range.selectNodeContents(el); rects = range.getClientRects(); }
-      else rects = [el.getBoundingClientRect()];
+      var mode = el.getAttribute('data-cutout');
+      if (mode === 'box') rects = [el.getBoundingClientRect()];
+      else { range.selectNodeContents(el); rects = mode === 'block' ? [range.getBoundingClientRect()] : range.getClientRects(); }
       for (var k = 0; k < rects.length; k++){
         var r = rects[k];
         if (r.width > 0 && r.height > 0) out.push({ x0: r.left / CW, y0: r.top / CH, x1: r.right / CW, y1: r.bottom / CH });
@@ -568,7 +569,7 @@
   function sync(){
     if (!field) return;
     var boxes = measure(), P = PARAMS;
-    var key = JSON.stringify(boxes) + P.cutPadX + ',' + P.cutPadY + ',' + P.cutRag;
+    var key = JSON.stringify(boxes) + [P.cutPadL, P.cutPadR, P.cutPadT, P.cutPadB, P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB].join();
     if (key === cutKey) return;
     cutKey = key;
     field.setCutouts(boxes);
@@ -614,6 +615,20 @@
     ctx.globalAlpha = 1;
     ctx.imageSmoothingEnabled = false;         // resizing the canvas resets it
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    /* Hole fills go under the glyphs, so a closing hole's glyphs fade in
+     * over its fading fill. */
+    if (PARAMS.cutFill > 0){
+      var g = PARAMS.cutFill | 0, cols = field.cols;
+      ctx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
+      for (var c = 0; c < field.fill.length; c++){
+        if (field.fill[c] <= 0) continue;
+        var cx = c % cols, cy = (c - cx) / cols;
+        var x0 = Math.round(cx * CW * dpr), y0 = Math.round(cy * CH * dpr);
+        ctx.globalAlpha = field.fill[c];
+        ctx.fillRect(x0, y0, Math.round((cx + 1) * CW * dpr) - x0, Math.round((cy + 1) * CH * dpr) - y0);
+      }
+      ctx.globalAlpha = 1;
+    }
     for (var i = 0; i < field.tiles.length; i++){
       var t = field.tiles[i];
       if (t.from === t.to) drawLayer(t, t.to, 1);

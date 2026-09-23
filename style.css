@@ -39,6 +39,8 @@
   --intro-size: 1.1;          /* rem */
   --intro-track: 0;           /* em */
   --intro-gap: 0;             /* px between PORTFOLIO and the name */
+  --intro-align: center;      /* PORTFOLIO against the name's width */
+  --intro-x: 0;               /* px, nudges PORTFOLIO sideways */
   --nav-size: 1.15;           /* rem */
   --nav-track: .23;           /* em */
   --nav-gap: 17;              /* px between links */
@@ -146,7 +148,8 @@ section{padding:140px 48px}
 }
 /* Anchored by --hero-x/--hero-y: the same share of the hero's own size
    is pulled back, so 0 sits flush left or top and 100 flush right or
-   bottom. Both lines cut their own holes around their text. */
+   bottom. One hole covers both lines' text (data-cutout="block"), so
+   nudging PORTFOLIO sideways grows the hole with it. */
 .hero-content{
   position:absolute;
   left:calc(var(--edge) + (100% - 2 * var(--edge)) * var(--hero-x) / 100);
@@ -161,6 +164,8 @@ section{padding:140px 48px}
   letter-spacing:calc(var(--intro-track) * 1em);
   color:var(--text-muted);
   margin-bottom:calc(var(--intro-gap) * 1px);
+  text-align:var(--intro-align);
+  transform:translateX(calc(var(--intro-x) * 1px));
 }
 .hero-name{
   font-family:var(--hero-font);
