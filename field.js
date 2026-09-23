@@ -21,21 +21,22 @@
    * dense; the ramps end in shade blocks the sections share, which is
    * what lets them run into one another. */
   var DEFAULTS = {
-    fps: 12,
+    fps: 10,
     pace: 0.8,                                 // pattern seconds per real second
     rise: 1.8, fall: 1.6,                      // brightness slew per second, capped at one tone per tick
-    threshold: 0.05,                           // below this a cell is empty
-    gain: 1,                                   // overall brightness
-    contrast: 1,                               // around mid grey; above 1 sharpens
-    patterns: ['cells', 'waves', 'cells'],
-    scales: [0.09, 0.1, 0.17],
+    threshold: 0.12,                           // below this a cell is empty
+    gain: 1.8,                                 // overall brightness
+    contrast: 2.45,                            // around mid grey; above 1 sharpens
+    patterns: ['waves', 'waves', 'cells'],
+    scales: [0.065, 0.26, 0.11],
     ramps: [['·', '∘', '○', '░', '▒', '▓'], ['.', ':', '+', '░', '▒', '▓'], ['.', ',', ';', '1', '0', '▒']],
-    waveSpeed: 1, ringWeight: 1, ringSpeed: 1.1, waveLow: 0.35, waveHigh: 0.95,
-    cellJitter: 0.38, cellSpeed: 1, cellLow: 0.15, cellHigh: 0.95,
-    maskScale: 0.03, maskSpeed: 0.04, maskLow: 0.35, maskHigh: 0.68,
-    border1: 0.34, border2: 0.66, borderWobble: 0.2, borderJag: 0.08, borderBand: 6, borderSpeed: 0.04,
+    /* waveHigh below waveLow inverts the waves: the troughs glow. */
+    waveSpeed: 0.9, ringWeight: 3, ringSpeed: 2.25, waveLow: 0.42, waveHigh: 0.07,
+    cellJitter: 0.33, cellSpeed: 1.55, cellLow: 0.21, cellHigh: 1,
+    maskScale: 0.115, maskSpeed: 0.04, maskLow: 0.35, maskHigh: 0.68,
+    border1: 0.31, border2: 0.74, borderWobble: 0.29, borderJag: 0.19, borderBand: 16, borderSpeed: 0.09,
     sizeScale: 0.3, sizeMid: 0.54, sizeBig: 0.66, sizeFade: 1.4, glyphFade: 0.3,
-    greys: [96, 170, 255]                      // tones 1-3, 4-5 and 6
+    greys: [123, 199, 255]                     // tones 1-3, 4-5 and 6
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 

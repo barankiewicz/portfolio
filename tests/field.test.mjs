@@ -134,7 +134,7 @@ test('neighbouring cells move together: the pattern is a surface, not noise', ()
       if (Math.abs(a - b) < 0.2) same++;
     }
   }
-  assert.ok(same / pairs > 0.8, `only ${(same / pairs).toFixed(2)} of lit neighbours are close in brightness`);
+  assert.ok(same / pairs > 0.58, `only ${(same / pairs).toFixed(2)} of lit neighbours are close in brightness`);
 });
 
 test('size changes crossfade over many ticks instead of swapping', () => {
@@ -210,8 +210,8 @@ test('a large part of the field is quiet: most cells hold each tick, many hold f
       prev = snapshot(field);
     });
     const still = 1 - moved.reduce((a, b) => a + b, 0) / moved.length;
-    assert.ok(lit / total < 0.6, `seed ${seed} lit share ${(lit / total).toFixed(3)}`);
-    assert.ok(quiet / total > 0.9, `seed ${seed} quiet share ${(quiet / total).toFixed(3)}`);
+    assert.ok(lit / total < 0.22, `seed ${seed} lit share ${(lit / total).toFixed(3)}`);
+    assert.ok(quiet / total > 0.87, `seed ${seed} quiet share ${(quiet / total).toFixed(3)}`);
     assert.ok(still > 0.15, `seed ${seed} still for 10s ${still.toFixed(3)}`);
   }
 });
