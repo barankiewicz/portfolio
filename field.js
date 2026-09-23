@@ -491,7 +491,7 @@
   /* A cell is GWxGH glyph pixels of PARAMS.pixel CSS px each; larger sizes
    * are the same bitmap with chunkier pixels. */
   var GW = 6, GH = 8, PX = 0, CW = 0, CH = 0;
-  var atlas = null, atlasGreys = '', dpr = 1, field = null, raf = 0, last = 0, owed = 0;
+  var atlas = null, atlasGreys = '', dpr = 1, field = null, raf = 0, last = 0, owed = 0, cutKey = '';
 
   /* One row of glyphs per grey, drawn pixel by pixel: hard edges, no
    * antialiasing, and only the three greys ever reach the canvas. */
@@ -528,6 +528,42 @@
     var cols = Math.ceil(w / CW), rows = Math.ceil(h / CH);
     if (!field) newField(cols, rows);
     else field.resize(cols, rows);
+    cutKey = '';
+    field.setCutouts(measure());
+  }
+
+  /* Holes follow the elements marked data-cutout: "text" cuts around
+   * each line of the element's text, "box" around its border box (a nav
+   * link's whole touch target). Measured in viewport px, handed to the
+   * model in cells. */
+  var range = document.createRange(), watched = new WeakSet();
+  var resizeWatch = window.ResizeObserver ? new ResizeObserver(function(){ sync(); }) : null;
+  function measure(){
+    var els = document.querySelectorAll('[data-cutout]'), out = [];
+    for (var i = 0; i < els.length; i++){
+      var el = els[i], rects;
+      if (resizeWatch && !watched.has(el)){ resizeWatch.observe(el); watched.add(el); }
+      if (el.getAttribute('data-cutout') === 'text'){ range.selectNodeContents(el); rects = range.getClientRects(); }
+      else rects = [el.getBoundingClientRect()];
+      for (var k = 0; k < rects.length; k++){
+        var r = rects[k];
+        if (r.width > 0 && r.height > 0) out.push({ x0: r.left / CW, y0: r.top / CH, x1: r.right / CW, y1: r.bottom / CH });
+      }
+    }
+    return out;
+  }
+  /* Called every display frame and on anything that moves text, so a
+   * hole is never a frame behind its text. Redraws at once when the
+   * holes changed; the model has already emptied what they cover. */
+  function sync(){
+    if (!field) return;
+    var boxes = measure(), P = PARAMS;
+    var key = JSON.stringify(boxes) + P.cutPadX + ',' + P.cutPadY + ',' + P.cutRag;
+    if (key === cutKey) return;
+    cutKey = key;
+    field.setCutouts(boxes);
+    if (reduce) settle();
+    draw();
   }
 
   function blit(s, glyph, grey, x, y, alpha){
@@ -586,6 +622,7 @@
       field.step(tickMs);
       draw();
     }
+    sync();
     raf = requestAnimationFrame(frame);
   }
   function play(){
@@ -604,15 +641,18 @@
     for (var k = 0; k < 150; k++) field.step(1000 / PARAMS.fps);
   }
 
-  /* The tuning page (.claude/review-02/tune.html) reaches the live values
-   * and a reseed through this handle. */
+  /* The tuning pages (.claude/review-02/tune.html for the field,
+   * .claude/review-04/tune.html for the cutouts) reach the live values, a
+   * reseed and the cut cells through this handle. */
   window.asciiField = {
     params: PARAMS,
     defaults: DEFAULTS,
     glyphs: Object.keys(GLYPHS),
     bitmaps: GLYPHS,
     large: LARGE,
-    reseed: function(){ newField(field.cols, field.rows); if (reduce){ settle(); draw(); } },
+    reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
+    /* The cut cells, for the tuning page's hole overlay. */
+    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut }; },
     /* What is on screen now: for each section, how many cells show each
      * tone of its ramp, plus the share of tiles at each size. */
     stats: function(){
@@ -636,6 +676,12 @@
       if (reduce) settle();
       draw();
     });
+    /* A web font arriving reflows the text; a focused skip link moves
+     * on screen without changing size. */
+    if (document.fonts) document.fonts.addEventListener('loadingdone', sync);
+    document.addEventListener('focusin', sync);
+    document.addEventListener('focusout', function(){ setTimeout(sync); });
+    window.addEventListener('hashchange', sync);
     if (reduce){
       settle();
       draw();
