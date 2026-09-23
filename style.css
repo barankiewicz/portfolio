@@ -35,9 +35,10 @@
   --hero-top: 120px;          /* space kept clear for the nav */
   --intro-size: 1.1;          /* rem */
   --intro-track: .13;         /* em */
-  --intro-gap: 14;            /* px between PORTFOLIO and the name */
-  --intro-align: left;        /* PORTFOLIO against the name's width */
-  --intro-x: -48;             /* px, nudges PORTFOLIO sideways */
+  --intro-weight: 400;
+  --intro-color: var(--text-muted);
+  --intro-on-x: 4;            /* where PORTFOLIO sits on the cloud clip: 0 left edge .. 100 right edge */
+  --intro-on-y: 10;           /* 0 top edge .. 100 bottom edge */
   --nav-size: 1.15;           /* rem */
   --nav-track: .23;           /* em */
   --nav-gap: 17;              /* px between links */
@@ -188,17 +189,25 @@ nav > *{pointer-events:auto}
   max-width:calc(100% - 2 * var(--edge));
   text-align:var(--hero-align);
 }
+/* PORTFOLIO sits on the cloud clip, anchored like the hero: the same
+   share of its own size is pulled back, so 0 is flush with the clip's
+   left or top edge and 100 with its right or bottom. cloud.js sets
+   --clip-x/-y/-w/-h from the clip's box and cuts PORTFOLIO's hole into
+   the video; until the clip can be drawn it stays hidden. */
 .hero-intro{
+  position:fixed;z-index:4;
+  left:calc(var(--clip-x, 0px) + var(--clip-w, 0px) * var(--intro-on-x) / 100);
+  top:calc(var(--clip-y, 0px) + var(--clip-h, 0px) * var(--intro-on-y) / 100);
+  transform:translate(calc(var(--intro-on-x) * -1%), calc(var(--intro-on-y) * -1%));
+  white-space:nowrap;
   font-family:var(--console-font);
   font-size:calc(var(--intro-size) * 1rem);
+  font-weight:var(--intro-weight);
   letter-spacing:calc(var(--intro-track) * 1em);
-  color:var(--text-muted);
-  margin-bottom:calc(var(--intro-gap) * 1px);
-  text-align:var(--intro-align);
-  /* never further left than the side gutter, so it can sit flush with
-     the screen edge but not run off it */
-  transform:translateX(max(calc(var(--intro-x) * 1px), -1 * var(--edge)));
+  color:var(--intro-color);
+  pointer-events:none;
 }
+.js .hero-intro:not([data-sweep]){visibility:hidden}
 .hero-name{
   font-family:var(--hero-font);
   font-weight:var(--hero-weight);
@@ -216,10 +225,11 @@ nav > *{pointer-events:auto}
    The one thing in colour (PRODUCT.md). A canvas cloud.js draws, in its
    own hole; its edges sit on the field's cell grid, so the ASCII take's
    glyphs line up with the field round it. Hidden until its first frame
-   can be drawn (cloud.js adds data-sweep then), then it sweeps open with
-   the hero and fades up with it, and on the way out it does both again,
-   slower than text (its own --shut), since a wide block of colour
-   wiped in 140ms reads as a cut. */
+   can be drawn (cloud.js adds data-sweep then), then it tears open in
+   scanline bands like everything else, the bands alone revealing it.
+   On the way out it also fades while its bands wipe, slower than text
+   (its own --shut), since a wide block of colour wiped in 140ms reads
+   as a cut. */
 .cloud{
   --w:min(calc(var(--cloud-vw) * 1vw), calc(var(--cloud-max) * 1px));
   --r:calc(100vw - var(--edge) - var(--cloud-x) * 1px);
@@ -247,7 +257,7 @@ nav > *{pointer-events:auto}
   transition:
     --cut var(--sweep) linear calc(var(--i, 0) * var(--stagger)),
     --txt var(--sweep) linear calc(var(--i, 0) * var(--stagger) + var(--lag)),
-    opacity .8s cubic-bezier(.37,0,.63,1);
+    opacity 0s;
 }
 /* on every route it sits over the pages, which scroll under its hole */
 .cloud.everywhere{z-index:3}

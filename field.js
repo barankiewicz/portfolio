@@ -747,9 +747,11 @@
     if (fill) o.fill = +fill;
     return o;
   }
+  var byEl = new Map();                        // each element's boxes from the last measure, for cutsOf
   function measure(){
     var els = document.querySelectorAll('[data-cutout]'), out = [], pad = PARAMS.cutPadR * CW;
     clips.clear();
+    byEl = new Map();
     for (var i = 0; i < els.length; i++){
       var el = els[i], rects;
       if (resizeWatch && !watched.has(el)){ resizeWatch.observe(el); watched.add(el); }
@@ -757,7 +759,7 @@
       if (mode === 'box') rects = [boxOf(el)];
       else { range.selectNodeContents(el); rects = mode === 'block' ? [range.getBoundingClientRect()] : range.getClientRects(); }
       if (!rects.length || !(rects[0].width > 0)) continue;
-      var own = ownHole(el), padPx = own.pad ? own.pad[1] * CW : pad;
+      var own = ownHole(el), padPx = own.pad ? own.pad[1] * CW : pad, from = out.length;
       var clip = el.closest('[data-cutout-clip]'), c = clip && clipBox(clip);
       var sweep = null, e, cut = 1, txt = 1;
       if (el.hasAttribute('data-sweep')){
@@ -790,6 +792,7 @@
           }
         }
       }
+      byEl.set(el, out.slice(from));
     }
     return out;
   }
@@ -914,6 +917,14 @@
     reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
     /* re-measure the holes now, for a cutout that appears on its own */
     sync: function(){ sync(); },
+    /* The cells an element's hole covers right now, hard and soft, as
+     * indices on the field's grid: the cloud clip cuts the same hole in
+     * the video for PORTFOLIO, so it tears open with the same bands. */
+    cutsOf: function(el){
+      var boxes = byEl.get(el) || [], out = [];
+      for (var i = 0; i < boxes.length; i++) out = out.concat(boxCells(field.seed, boxes[i], PARAMS, field.cols, field.rows));
+      return out;
+    },
     /* The cut cells, for the tuning page's hole overlay, and the soft
      * cells and tones, for the review probes. */
     holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone, fill: field.fill, section: field.section }; },
