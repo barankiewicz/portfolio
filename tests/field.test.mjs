@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-const { createField, sweepBands, bandAt, PARAMS, DEFAULTS, GLYPHS, CHARS, TONES } = createRequire(import.meta.url)('../field.js');
+const { createField, sweepBands, bandAt, boxCells, PARAMS, DEFAULTS, GLYPHS, CHARS, TONES } = createRequire(import.meta.url)('../field.js');
 
 const STEP = 1000 / DEFAULTS.fps; // the renderer steps the field at its fps
 const ASPECT = 16 / 12;
@@ -706,5 +706,16 @@ test("the global fill grey applies live, without the holes being cut again; a ho
     PARAMS.cutFill = 80;
     assert.equal(field.fillOf(12 * 40 + 31), 80);
     assert.equal(field.fillOf(5 * 40 + 12), 90);
+  });
+});
+
+test('boxCells lists exactly the cells a hole cuts, pad and rag included, for anything else to cut the same hole', () => {
+  withParams({ ...holeParams(1, 0, 3), cutPadR: 2, cutRagT: 1 }, () => {
+    for (const box of [{ x0: 5.3, y0: 4.2, x1: 19.8, y1: 7 }, { x0: 30, y0: 2, x1: 38, y1: 9, pad: [0, 1, 1, 0], rag: [2, 0, 0, 2] }, { x0: -3, y0: 10, x1: 6, y1: 14, padR: 0.5 }]) {
+      const field = createField(17, 60, 20, ASPECT);
+      field.setCutouts([box]);
+      const want = cutCells(field).map(([x, y]) => y * 60 + x);
+      assert.deepEqual(boxCells(17, box, PARAMS, 60, 20).sort((a, b) => a - b), want);
+    }
   });
 });
