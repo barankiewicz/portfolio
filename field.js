@@ -730,8 +730,9 @@
     bitmaps: GLYPHS,
     large: LARGE,
     reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
-    /* The cut cells, for the tuning page's hole overlay. */
-    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut }; },
+    /* The cut cells, for the tuning page's hole overlay, and the soft
+     * cells and tones, for the review probes. */
+    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone }; },
     /* What is on screen now: for each section, how many cells show each
      * tone of its ramp, plus the share of tiles at each size. */
     stats: function(){

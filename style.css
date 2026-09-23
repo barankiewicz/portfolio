@@ -389,7 +389,7 @@ nav > *{pointer-events:auto}
 .channel-item > div{
   font-family:var(--hero-font);font-weight:500;
   font-size:clamp(1.4rem, 3vw, 2.4rem);line-height:1.15;letter-spacing:-.02em;
-  overflow-wrap:break-word;
+  min-width:0;overflow-wrap:break-word;
   text-decoration-thickness:1px;text-underline-offset:.18em;
 }
 .channel-item:hover > div{color:var(--accent);text-decoration-line:underline}
@@ -469,7 +469,7 @@ footer{
   footer{padding:12px 24px;font-size:.6rem}
 }
 @media(max-width:480px){
-  :root{--edge:16px;--nav-pad:8;--hero-top:88px;--step:12px}
+  :root{--edge:16px;--nav-pad:8;--hero-top:88px}
   .stratum{margin-top:40px;padding:18px 8px 22px calc(var(--nav-pad) * 1px)}
   .tl-year{font-size:1.15rem}
   .channel-item > div{font-size:1.2rem}
