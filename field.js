@@ -54,7 +54,12 @@
      * over cutFade seconds as a hole opens or closes. */
     cutPadL: 0.25, cutPadR: 8, cutPadT: 0, cutPadB: 0,
     cutRagL: 6, cutRagR: 0, cutRagT: 0, cutRagB: 0,
-    cutFill: 31, cutFade: 0.05
+    cutFill: 31, cutFade: 0.05,
+    /* How a hole sweeps open: in bands one cell row tall, each opening
+     * over its own share of the timeline. Shuffle 0 is a top-down
+     * cascade, 1 is scanline disorder; length is a band's share of the
+     * timeline, jitter how much that varies from band to band. */
+    bandShuffle: 0.7, bandLength: 0.35, bandJitter: 0.5
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
@@ -502,7 +507,28 @@
     return f;
   }
 
-  var api = { createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
+  /* === SWEEP BANDS ===
+   * The windows [a, b] of a 0..1 timeline over which each of n bands
+   * opens, fixed per seed. bandAt says how open a band is at a point of
+   * the timeline, eased out so each band lands softly. The renderer
+   * turns both into the hole and into the text mask, so the two always
+   * agree. */
+  function sweepBands(seed, n, P){
+    var out = [];
+    for (var i = 0; i < n; i++){
+      var order = (1 - P.bandShuffle) * (n > 1 ? i / (n - 1) : 0) + P.bandShuffle * hash3(seed, i, 0, 30);
+      var len = P.bandLength * (1 - P.bandJitter * hash3(seed, i, 1, 31));
+      var a = order * (1 - len);
+      out.push([a, a + len]);
+    }
+    return out;
+  }
+  function bandAt(w, c){
+    var p = Math.max(0, Math.min(1, (c - w[0]) / (w[1] - w[0])));
+    return p * (2 - p);
+  }
+
+  var api = { sweepBands: sweepBands, bandAt: bandAt, createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER === */
