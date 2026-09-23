@@ -97,7 +97,8 @@ test('each third of the screen draws mostly from its own section, and the border
   };
   assert.ok(share(0, 32, 0) > 0.85, 'left edge is not the first section');
   assert.ok(share(64, 96, 1) > 0.85, 'middle is not the second section');
-  assert.ok(share(128, 160, 2) > 0.85, 'right edge is not the third section');
+  // the right section is whatever lies past border2, clear of its wobble
+  assert.ok(share(Math.ceil((DEFAULTS.border2 + 0.06) * 160), 160, 2) > 0.85, 'right edge is not the third section');
   // Across the first border a row flips between the two sections many
   // times: the cells are dithered, not cut along one line.
   let switches = 0;
