@@ -55,8 +55,8 @@ test('tone and grey never move more than one step in a tick, at 12, 30 or 60fps'
 });
 
 test('no tuning can make a cell jump: the slew is capped at one tone per tick', () => {
-  const saved = { rise: PARAMS.rise, fall: PARAMS.fall, fps: PARAMS.fps, contrast: PARAMS.contrast };
-  Object.assign(PARAMS, { rise: 50, fall: 50, fps: 5, contrast: 4 });
+  const saved = { rise: PARAMS.rise, fall: PARAMS.fall, fps: PARAMS.fps, contrast: PARAMS.contrast, curve: PARAMS.curve, dither: PARAMS.dither };
+  Object.assign(PARAMS, { rise: 50, fall: 50, fps: 5, contrast: 4, curve: 0.2, dither: 3 });
   try {
     const field = createField(7, 80, 45, ASPECT);
     let prev = snapshot(field);
@@ -163,7 +163,7 @@ test('a large glyph crossfades into its next glyph instead of swapping in one ti
   let changes = 0;
   run(field, 20 * SECOND, STEP, () => {
     field.tiles.forEach((tile, t) => {
-      for (const s of [1.5, 2]) {
+      for (const s of [1.5, 2, 3]) {
         tile.cells[s].forEach((c, k) => {
           const key = `${t}:${s}:${k}`;
           const p = prev.get(key);
@@ -181,6 +181,47 @@ test('a large glyph crossfades into its next glyph instead of swapping in one ti
     });
   });
   assert.ok(changes > 50, `only ${changes} large-glyph changes in 20s`);
+});
+
+test('the size amounts decide how much of the field draws large', () => {
+  const saved = { midAmount: PARAMS.midAmount, bigAmount: PARAMS.bigAmount, bigSize: PARAMS.bigSize };
+  const share = (size) => { const f = createField(5, 120, 68, ASPECT); run(f, 5 * SECOND); return f.tiles.filter((t) => t.to === size).length / f.tiles.length; };
+  try {
+    Object.assign(PARAMS, { midAmount: 0, bigAmount: 0 });
+    assert.equal(share(1), 1);
+    Object.assign(PARAMS, { midAmount: 0, bigAmount: 1, bigSize: 3 });
+    assert.equal(share(3), 1);
+  } finally {
+    Object.assign(PARAMS, saved);
+  }
+});
+
+test('dither mixes neighbouring glyphs in smooth gradients', () => {
+  // Measured on a soft setting: at high contrast neighbours already differ
+  // almost everywhere, so there is no banding for dither to break up.
+  const saved = { dither: PARAMS.dither, contrast: PARAMS.contrast, gain: PARAMS.gain };
+  Object.assign(PARAMS, { contrast: 1, gain: 1 });
+  const distinct = () => {
+    const f = createField(21, 160, 68, ASPECT);
+    run(f, 5 * SECOND);
+    let differ = 0;
+    let pairs = 0;
+    for (let i = 1; i < f.glyph.length; i++) {
+      if (!f.tone[i] || !f.tone[i - 1]) continue;
+      pairs++;
+      if (f.glyph[i] !== f.glyph[i - 1]) differ++;
+    }
+    return differ / pairs;
+  };
+  try {
+    PARAMS.dither = 0;
+    const plain = distinct();
+    PARAMS.dither = 1;
+    const mixed = distinct();
+    assert.ok(mixed > plain * 1.15, `lit neighbours differing went from ${plain.toFixed(2)} to only ${mixed.toFixed(2)}`);
+  } finally {
+    Object.assign(PARAMS, saved);
+  }
 });
 
 test('at least three glyph sizes are on screen at once', () => {

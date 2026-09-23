@@ -10,9 +10,10 @@
   'use strict';
 
   var TONES = 6;
-  /* Sizes are 1x, 1.5x and 2x cells, laid out in tiles of 6x6 cells. */
+  /* Glyphs come in 1x and two larger sizes picked from LARGE, laid out in
+   * tiles of 6x6 cells; every size divides the tile. */
   var TILE = 6;
-  var SIZES = [1, 1.5, 2];
+  var LARGE = [1.5, 2, 3];
   var INTRO = 1.6;                             // whole field fades up on load
 
   /* Every tunable value, read live on each tick so the tuning page can
@@ -35,8 +36,15 @@
     cellJitter: 0.33, cellSpeed: 1.55, cellLow: 0.21, cellHigh: 1,
     maskScale: 0.115, maskSpeed: 0.04, maskLow: 0.35, maskHigh: 0.68,
     border1: 0.31, border2: 0.74, borderWobble: 0.29, borderJag: 0.19, borderBand: 16, borderSpeed: 0.09,
-    sizeScale: 0.3, sizeMid: 0.54, sizeBig: 0.66, sizeFade: 1.4, glyphFade: 0.3,
-    greys: [123, 199, 255]                     // tones 1-3, 4-5 and 6
+    pixel: 2,                                  // CSS px per glyph pixel; a cell is 6x8 glyph pixels
+    midSize: 1.5, bigSize: 2,                  // the two larger sizes, from LARGE
+    midAmount: 0.12, bigAmount: 0.34,          // how much of the field draws at each
+    sizeScale: 0.3, sizeSpeed: 0.035,          // size patches: frequency, and how fast they change
+    sizeFade: 1.4, glyphFade: 0.3,
+    curve: 1,                                  // below 1 favours dense glyphs, above 1 sparse ones
+    dither: 0,                                 // each cell's brightness scaled by up to +-dither/2, fixed per cell
+    greyMid: 4, greyBright: 6,                 // tone at which the mid grey and white start
+    greys: [123, 199, 255]
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
@@ -71,6 +79,17 @@
     '1': ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
     'x': ['.....', '.....', '#...#', '.#.#.', '..#..', '.#.#.', '#...#'],
     'o': ['.....', '.....', '.###.', '#...#', '#...#', '#...#', '.###.'],
+    'a': ['.....', '.....', '.###.', '....#', '.####', '#...#', '.####'],
+    'e': ['.....', '.....', '.###.', '#...#', '#####', '#....', '.###.'],
+    'i': ['..#..', '.....', '.##..', '..#..', '..#..', '..#..', '.###.'],
+    'k': ['#....', '#....', '#..#.', '#.#..', '##...', '#.#..', '#..#.'],
+    'l': ['.##..', '..#..', '..#..', '..#..', '..#..', '..#..', '.###.'],
+    'q': ['.....', '.....', '.####', '#...#', '.####', '....#', '....#'],
+    'y': ['.....', '.....', '#...#', '#...#', '.####', '....#', '.###.'],
+    'z': ['.....', '.....', '#####', '...#.', '..#..', '.#...', '#####'],
+    'M': ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'],
+    'Q': ['.###.', '#...#', '#...#', '#...#', '#.#.#', '#..#.', '.##.#'],
+    'W': ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '##.##', '#...#'],
     '·': ['.....', '.....', '.....', '..#..', '.....', '.....', '.....'],
     '∘': ['.....', '.....', '.###.', '.#.#.', '.###.', '.....', '.....'],
     '○': ['.....', '.###.', '#...#', '#...#', '#...#', '.###.', '.....'],
@@ -190,8 +209,9 @@
       return Math.min(TONES, 1 + Math.floor((v - PARAMS.threshold) / toneStep));
     }
     function greyOf(tone){
-      return tone < 4 ? 0 : tone < 6 ? 1 : 2;
+      return tone < PARAMS.greyMid ? 0 : tone < PARAMS.greyBright ? 1 : 2;
     }
+
     function glyphFor(sec, tone){
       return tone ? rampGlyphs[sec][tone - 1] : 0;
     }
@@ -200,10 +220,11 @@
      * flickering between sizes at a threshold. */
     function sizeTarget(tile){
       var P = PARAMS, s = P.sizeScale;
-      var n = noise3(f.seed ^ 0x5bd1e995, tile.x * s, tile.y * s * f.aspect, f.time * 0.035);
+      var n = noise3(f.seed ^ 0x5bd1e995, tile.x * s, tile.y * s * f.aspect, f.time * P.sizeSpeed);
       var margin = 0.03;                       // harder to enter a size than to stay in it
-      if (n > (tile.to === 2 ? P.sizeBig - margin : P.sizeBig + margin)) return 2;
-      if (n > (tile.to === 1 ? P.sizeMid + margin : P.sizeMid - margin)) return 1.5;
+      var bigAt = 1 - P.bigAmount, midAt = bigAt - P.midAmount;
+      if (n > (tile.to === P.bigSize ? bigAt - margin : bigAt + margin)) return P.bigSize;
+      if (n > (tile.to === 1 ? midAt + margin : midAt - margin)) return P.midSize;
       return 1;
     }
     function buildTiles(old){
@@ -215,8 +236,8 @@
         if (!t){
           t = { x: x, y: y, from: 1, to: 1, mix: 1, t0: 0, cells: {} };
           t.to = t.from = sizeTarget(t);
-          for (var si = 1; si < SIZES.length; si++){
-            var cells = t.cells[SIZES[si]] = [], count = Math.pow(TILE / SIZES[si], 2);
+          for (var si = 0; si < LARGE.length; si++){
+            var cells = t.cells[LARGE[si]] = [], count = Math.pow(TILE / LARGE[si], 2);
             for (var k = 0; k < count; k++) cells.push({ glyph: 0, grey: 0, fromGlyph: 0, fromGrey: 0, u: 1 });
           }
         }
@@ -251,8 +272,13 @@
         ? wavesAt(f.waves[sec], P.scales[sec], x, ya, t, f.cols, f.rows * f.aspect)
         : cellsAt(f.seed ^ (sec * 0x9e3779b1), P.scales[sec], x, ya, t);
       var mask = smoothstep(P.maskLow, P.maskHigh, noise3(f.seed ^ 0x3c6ef372, x * P.maskScale, ya * P.maskScale, t * P.maskSpeed));
-      v = Math.max(0, Math.min(1, (v - 0.5) * P.contrast + 0.5));
-      return Math.min(1, v * mask * P.gain);
+      v = Math.pow(Math.max(0, Math.min(1, (v - 0.5) * P.contrast + 0.5)), P.curve);
+      /* Dither scales each cell's brightness by a fixed amount, so
+       * neighbours at the same level show different glyphs. It is fixed
+       * per cell, so it adds texture, not flicker, and it acts before the
+       * slew, so it cannot make a cell jump; empty stays empty. */
+      var dither = 1 + (hash3(f.seed, x, y, 11) - 0.5) * P.dither;
+      return Math.min(1, v * mask * P.gain * dither);
     }
 
     function resize(c, r){
@@ -317,8 +343,8 @@
      * changing reads as texture, but a larger glyph swapping form in one
      * tick is a pop. */
     function stepLargeCells(t, dt){
-      for (var si = 1; si < SIZES.length; si++){
-        var s = SIZES[si], n = TILE / s;
+      for (var si = 0; si < LARGE.length; si++){
+        var s = LARGE[si], n = TILE / s;
         for (var k = 0; k < n * n; k++){
           var c = t.cells[s][k];
           var x0 = t.x * TILE + (k % n) * s, y0 = t.y * TILE + Math.floor(k / n) * s, v = 0;
@@ -343,7 +369,7 @@
     return f;
   }
 
-  var api = { createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES };
+  var api = { createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER === */
@@ -351,10 +377,9 @@
   if (!canvas || !canvas.getContext) return;
   var ctx = canvas.getContext('2d');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  /* A cell pixel is 2 CSS px; larger sizes are the same bitmap with
-   * chunkier pixels (3px at 1.5x, 4px at 2x). */
-  var GW = 6, GH = 8, PX = 2;
-  var CW = GW * PX, CH = GH * PX;
+  /* A cell is GWxGH glyph pixels of PARAMS.pixel CSS px each; larger sizes
+   * are the same bitmap with chunkier pixels. */
+  var GW = 6, GH = 8, PX = 0, CW = 0, CH = 0;
   var atlas = null, atlasGreys = '', dpr = 1, field = null, raf = 0, last = 0, owed = 0;
 
   /* One row of glyphs per grey, drawn pixel by pixel: hard edges, no
@@ -385,6 +410,7 @@
   function fit(){
     var w = window.innerWidth, h = window.innerHeight;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
+    PX = PARAMS.pixel; CW = GW * PX; CH = GH * PX;
     if (!atlas) buildAtlas();
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
@@ -421,6 +447,7 @@
 
   function draw(){
     if (PARAMS.greys.join() !== atlasGreys) buildAtlas();
+    if (PARAMS.pixel !== PX) fit();
     ctx.globalAlpha = 1;
     ctx.imageSmoothingEnabled = false;         // resizing the canvas resets it
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -466,7 +493,20 @@
     params: PARAMS,
     defaults: DEFAULTS,
     glyphs: Object.keys(GLYPHS),
-    reseed: function(){ newField(field.cols, field.rows); if (reduce){ settle(); draw(); } }
+    large: LARGE,
+    reseed: function(){ newField(field.cols, field.rows); if (reduce){ settle(); draw(); } },
+    /* What is on screen now: for each section, how many cells show each
+     * tone of its ramp, plus the share of tiles at each size. */
+    stats: function(){
+      var tones = [[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]], cells = [0, 0, 0], lit = 0, sizes = {};
+      for (var i = 0; i < field.tone.length; i++){
+        var sec = field.section[i];
+        cells[sec]++;
+        if (field.tone[i]){ tones[sec][field.tone[i] - 1]++; lit++; }
+      }
+      field.tiles.forEach(function(t){ sizes[t.to] = (sizes[t.to] || 0) + 1 / field.tiles.length; });
+      return { tones: tones, cells: cells, lit: lit / field.tone.length, sizes: sizes };
+    }
   };
 
   function begin(){
