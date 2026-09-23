@@ -16,6 +16,7 @@
   var LARGE = [1.5, 2, 3];
   var SMALL = 0.5, FINE = TILE / SMALL;         // a small tile is 12x12 quarter cells
   var INTRO = 1.6;                             // whole field fades up on load
+  var SOFT_MS = 25, SOFT_FADE = 0.1;           // a soft hole's own clock, see softTick
 
   /* Every tunable value, read live on each tick so the tuning page can
    * change them while the field runs. Three sections sit side by side,
@@ -54,7 +55,12 @@
      * over cutFade seconds as a hole opens or closes. */
     cutPadL: 0.25, cutPadR: 8, cutPadT: 0, cutPadB: 0,
     cutRagL: 6, cutRagR: 0, cutRagT: 0, cutRagB: 0,
-    cutFill: 31, cutFade: 0.05
+    cutFill: 31, cutFade: 0.05,
+    /* How a hole sweeps open: in bands one cell row tall, each opening
+     * over its own share of the timeline. Shuffle 0 is a top-down
+     * cascade, 1 is scanline disorder; length is a band's share of the
+     * timeline, jitter how much that varies from band to band. */
+    bandShuffle: 0.7, bandLength: 0.35, bandJitter: 0.5
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
@@ -208,15 +214,21 @@
     var f = {
       seed: seed | 0, cols: 0, rows: 0, aspect: aspect || 1,
       real: 0, time: 0,
-      level: null, tone: null, grey: null, glyph: null, section: null, cut: null, fill: null,
+      level: null, tone: null, grey: null, glyph: null, section: null, cut: null, soft: null, fill: null,
       tiles: [], waves: [makeWaves(rnd), makeWaves(rnd), makeWaves(rnd)],
-      step: step, resize: resize, setCutouts: setCutouts
+      step: step, resize: resize, setCutouts: setCutouts, softTick: softTick
     };
     var rampGlyphs = [[], [], []], toneStep = 1, cutouts = [];
 
     function toneOf(v){
       if (v < PARAMS.threshold) return 0;
       return Math.min(TONES, 1 + Math.floor((v - PARAMS.threshold) / toneStep));
+    }
+    /* A soft cell drops exactly one tone per tick: to just under the
+     * floor of the tone it shows. The capped slew would take a seventh
+     * tick from full, and the sweep's --lag counts on six. */
+    function softStep(v, tone){
+      return tone ? PARAMS.threshold + (tone - 1) * toneStep - 1e-6 : Math.min(v, PARAMS.threshold - 1e-6);
     }
     function greyOf(tone){
       return tone < PARAMS.greyMid ? 0 : tone < PARAMS.greyBright ? 1 : 2;
@@ -310,7 +322,7 @@
       }
       f.cols = c; f.rows = r;
       f.section = new Uint8Array(n); f.shape = new Float32Array(n); f.weight = new Float32Array(n);
-      f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph; f.fill = fill;
+      f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph; f.fill = fill; f.soft = new Uint8Array(n);
       buildTiles(f.tiles);
       cutHoles();
     }
@@ -322,7 +334,12 @@
      * everything under a hole is emptied on the call, not on the next
      * tick. Uncovering is not special: the cells start from empty and
      * rise under the usual one-tone-per-tick slew. Only the hole's fill
-     * eases, in step, since a grey panel popping in would be a yank. */
+     * eases, in step, since a grey panel popping in would be a yank.
+     * A box marked soft is a hole on its way: nothing is emptied on the
+     * call, its cells fall to empty under the slew and its large glyphs
+     * crossfade out, so an opening hole erodes the field instead of
+     * punching it. A hard box wins where the two overlap. A box may
+     * carry its own padR, which a hole sweeping open grows from zero. */
     function setCutouts(list){
       cutouts = list || [];
       cutHoles();
@@ -335,14 +352,16 @@
       return Math.floor(hash3(f.seed, along, edge, 20 + side) * (Math.floor(rag) + 1));
     }
     function cutHoles(){
-      var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows);
+      var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows), mask;
+      f.soft = new Uint8Array(cols * rows);
       function fill(x0, y0, x1, y1){
         x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(cols, x1); y1 = Math.min(rows, y1);
-        for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) cut[y * cols + x] = 1;
+        for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) mask[y * cols + x] = 1;
       }
       for (var k = 0; k < cutouts.length; k++){
         var r = cutouts[k];
-        var x0 = Math.floor(r.x0 - P.cutPadL), x1 = Math.ceil(r.x1 + P.cutPadR);
+        mask = r.soft ? f.soft : cut;
+        var x0 = Math.floor(r.x0 - P.cutPadL), x1 = Math.ceil(r.x1 + (r.padR != null ? r.padR : P.cutPadR));
         var y0 = Math.floor(r.y0 - P.cutPadT), y1 = Math.ceil(r.y1 + P.cutPadB);
         if (x1 <= 0 || y1 <= 0 || x0 >= cols || y0 >= rows) continue;
         fill(x0, y0, x1, y1);
@@ -351,7 +370,7 @@
         for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1), y + 1); }
         for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3)); }
       }
-      for (var i = 0; i < cut.length; i++) if (cut[i]){ f.level[i] = 0; f.tone[i] = 0; f.grey[i] = 0; f.glyph[i] = 0; }
+      for (var i = 0; i < cut.length; i++) if (cut[i]){ f.soft[i] = 0; f.level[i] = 0; f.tone[i] = 0; f.grey[i] = 0; f.glyph[i] = 0; }
       for (var ti = 0; ti < f.tiles.length; ti++){
         var t = f.tiles[ti];
         if (t.fine) for (var q = 0; q < FINE * FINE; q++){
@@ -366,6 +385,69 @@
           }
         }
       }
+    }
+    /* Between ticks, on the display's clock: a soft hole empties one
+     * tone per SOFT_MS (at most one per call), and larger glyphs over it
+     * crossfade out over SOFT_FADE seconds. Still one tone at a time, but
+     * a full glyph is gone in ~150ms rather than the six ticks of the
+     * field's own clock, so a sweep's text can follow its hole quickly.
+     * Hole fills ease here as well as on the tick.
+     * Returns whether anything changed, so the caller knows to redraw. */
+    var softOwed = 0;
+    function softTick(dtMs){
+      var any = false, dt = dtMs / 1000;
+      /* Hole fills ease per frame too, or a fast sweep's grey panel would
+       * advance in the field's 100ms steps. */
+      var gain = f.real < INTRO ? easeInOutSine(f.real / INTRO) : 1, fillStep = dt / PARAMS.cutFade;
+      for (var fi = 0; fi < f.fill.length; fi++){
+        var want = f.cut[fi] || f.soft[fi] ? gain : 0, was = f.fill[fi];
+        if (want === was) continue;
+        f.fill[fi] = want > was ? Math.min(want, was + fillStep) : Math.max(want, was - fillStep);
+        any = true;
+      }
+      for (var ti = 0; ti < f.tiles.length; ti++){
+        var t = f.tiles[ti];
+        for (var si = 0; si < LARGE.length; si++){
+          var sz = LARGE[si], n = TILE / sz;
+          for (var c = 0; c < n * n; c++){
+            var cell = t.cells[sz][c];
+            if (!cell.glyph && cell.u >= 1) continue;
+            if (!inMask(f.soft, t.x * TILE + (c % n) * sz, t.y * TILE + Math.floor(c / n) * sz, sz)) continue;
+            if (cell.glyph){ cell.fromGlyph = cell.glyph; cell.fromGrey = cell.grey; cell.glyph = cell.grey = 0; cell.u = 0; }
+            cell.u = Math.min(1, cell.u + dt / SOFT_FADE);
+            any = true;
+          }
+        }
+      }
+      softOwed = Math.min(softOwed + dtMs, SOFT_MS);
+      if (softOwed < SOFT_MS) return any;
+      softOwed = 0;
+      for (var i = 0; i < f.tone.length; i++){
+        if (!f.soft[i] || !f.tone[i]) continue;
+        f.level[i] = softStep(f.level[i], f.tone[i]);
+        var tone = toneOf(f.level[i]);
+        f.tone[i] = tone; f.grey[i] = greyOf(tone); f.glyph[i] = glyphFor(f.section[i], tone);
+        any = true;
+      }
+      for (var tj = 0; tj < f.tiles.length; tj++){
+        var q = f.tiles[tj].fine;
+        if (!q) continue;
+        var tx = f.tiles[tj].x * TILE, ty = f.tiles[tj].y * TILE;
+        for (var k = 0; k < FINE * FINE; k++){
+          var x = tx + ((k % FINE) >> 1), y = ty + (Math.floor(k / FINE) >> 1);
+          if (x >= f.cols || y >= f.rows || !q.tone[k] || !f.soft[y * f.cols + x]) continue;
+          q.level[k] = softStep(q.level[k], q.tone[k]);
+          var qt = toneOf(q.level[k]);
+          q.tone[k] = qt; q.grey[k] = greyOf(qt); q.glyph[k] = glyphFor(f.section[y * f.cols + x], qt);
+          any = true;
+        }
+      }
+      return any;
+    }
+    function inMask(mask, x0, y0, s){
+      for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
+        for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) if (mask[y * f.cols + x]) return true;
+      return false;
     }
     /* Whether a glyph of size s at (x0, y0) touches a cut cell. */
     function inCut(x0, y0, s){
@@ -393,12 +475,13 @@
       for (var y = 0; y < f.rows; y++){
         for (var x = 0; x < f.cols; x++){
           var i = y * f.cols + x, sec = f.section[i];
-          var want = f.cut[i] ? gain : 0;
+          var want = f.cut[i] || f.soft[i] ? gain : 0;
           f.fill[i] = want > f.fill[i] ? Math.min(want, f.fill[i] + fillStep) : Math.max(want, f.fill[i] - fillStep);
           f.shape[i] = shapeAt(sec, x, y);
           f.weight[i] = weightAt(x, y) * gain;
           var target = Math.min(1, f.shape[i] * f.weight[i]), v = f.level[i];
           if (f.cut[i]) v = 0;
+          else if (f.soft[i]) v = softStep(v, f.tone[i]);
           else if (target > v) v = Math.min(target, v + rise);
           else v = Math.max(target, v - fall);
           var tone = toneOf(v);
@@ -409,6 +492,8 @@
         }
       }
 
+      /* this tick was the soft cells' step for this frame */
+      softOwed = 0;
       for (var ti = 0; ti < f.tiles.length; ti++){
         var t = f.tiles[ti];
         stepLargeCells(t, dt);
@@ -451,6 +536,7 @@
         var shape = (sx & 1) || (sy & 1) ? shapeAt(sec, x + (sx & 1) * SMALL, y + (sy & 1) * SMALL) : f.shape[i];
         var target = Math.min(1, shape * f.weight[i]), v = q.level[k];
         if (f.cut[i]) v = 0;
+        else if (f.soft[i]) v = softStep(v, q.tone[k]);
         else if (target > v) v = Math.min(target, v + rise);
         else v = Math.max(target, v - fall);
         var tone = toneOf(v);
@@ -467,10 +553,15 @@
         var s = LARGE[si], n = TILE / s;
         for (var k = 0; k < n * n; k++){
           var c = t.cells[s][k];
-          var x0 = t.x * TILE + (k % n) * s, y0 = t.y * TILE + Math.floor(k / n) * s, v = 0;
+          var x0 = t.x * TILE + (k % n) * s, y0 = t.y * TILE + Math.floor(k / n) * s, v = 0, soft = false;
           /* A 1.5x glyph straddles cells, so take every cell it overlaps. */
           for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
-            for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) v = Math.max(v, f.level[y * f.cols + x]);
+            for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++){
+              var j = y * f.cols + x;
+              if (f.soft[j]) soft = true;
+              v = Math.max(v, f.level[j]);
+            }
+          if (soft) v = 0;
           if (inCut(x0, y0, s)){ c.glyph = c.fromGlyph = c.grey = c.fromGrey = 0; c.u = 1; continue; }
           c.u = Math.min(1, c.u + dt / PARAMS.glyphFade);
           var tone = toneOf(v), gr = greyOf(tone);
@@ -490,7 +581,28 @@
     return f;
   }
 
-  var api = { createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
+  /* === SWEEP BANDS ===
+   * The windows [a, b] of a 0..1 timeline over which each of n bands
+   * opens, fixed per seed. bandAt says how open a band is at a point of
+   * the timeline, eased out so each band lands softly. The renderer
+   * turns both into the hole and into the text mask, so the two always
+   * agree. */
+  function sweepBands(seed, n, P){
+    var out = [];
+    for (var i = 0; i < n; i++){
+      var order = (1 - P.bandShuffle) * (n > 1 ? i / (n - 1) : 0) + P.bandShuffle * hash3(seed, i, 0, 30);
+      var len = P.bandLength * (1 - P.bandJitter * hash3(seed, i, 1, 31));
+      var a = order * (1 - len);
+      out.push([a, a + len]);
+    }
+    return out;
+  }
+  function bandAt(w, c){
+    var p = Math.max(0, Math.min(1, (c - w[0]) / (w[1] - w[0])));
+    return p * (2 - p);
+  }
+
+  var api = { sweepBands: sweepBands, bandAt: bandAt, createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER === */
@@ -546,7 +658,52 @@
    * each line of the element's text, "block" one hole round all of it,
    * "box" round its border box and its children's (the nav strip, which
    * keeps covering the email when that is nudged out of line).
-   * Measured in viewport px, handed to the model in cells. */
+   * Measured in viewport px, handed to the model in cells.
+   *
+   * Inside an element marked data-cutout-clip (a scrolling page) holes
+   * are cut to that element's box, less its --clip-top, so a block
+   * scrolled under the nav takes only the visible part of its hole.
+   *
+   * An element also marked data-sweep opens and closes in bands one cell
+   * row tall, driven by two timelines in its CSS, --cut and --txt, from
+   * 0 to 1. Each band opens over its own window of the timeline
+   * (sweepBands), from the element's left edge to its right edge plus the
+   * hole's right padding. How far a band is open on --cut is soft hole,
+   * the field eroding out of it; on --txt it is hard hole. The text mask
+   * is written here from the same bands, one layer per band sized by the
+   * same --txt expression, so text only ever shows where its band's hole
+   * is hard. */
+  /* syncBands deals an element its bands once per size and writes its
+   * text mask from them; measure reuses the bands for the holes. */
+  var sweeps = new WeakMap(), sweepSeq = 0;
+  function num(v){ return +v.toFixed(4); }
+  function syncBands(el, e){
+    var P = PARAMS, st = sweeps.get(el);
+    if (!st) sweeps.set(el, st = { seed: 0x2545f491 ^ (++sweepSeq * 0x9e3779b1), key: '' });
+    var key = Math.round(e.width) + 'x' + Math.round(e.height) + ',' + CH + ',' + [P.bandShuffle, P.bandLength, P.bandJitter].join();
+    if (st.key === key) return st;
+    st.key = key;
+    /* Bands start on the cell grid where the element sits now, so their
+     * edges are the jagged teeth; scrolling carries them with it. */
+    st.phase = ((e.top % CH) + CH) % CH;
+    st.bands = sweepBands(st.seed, Math.ceil((e.height + st.phase) / CH), P);
+    if (!reduce){
+      var img = [], size = [], pos = [];
+      for (var i = 0; i < st.bands.length; i++){
+        var a = num(st.bands[i][0]), w = num(st.bands[i][1] - st.bands[i][0]);
+        var q = 'clamp(0, (var(--txt) - ' + a + ') / ' + w + ', 1)';
+        img.push('linear-gradient(#000,#000)');
+        size.push('calc(' + q + ' * (2 - ' + q + ') * (100% + var(--cut-pad, 96px))) ' + CH + 'px');
+        pos.push('0 ' + (i * CH - st.phase) + 'px');
+      }
+      var cs = el.style;
+      cs.webkitMaskImage = cs.maskImage = img.join();
+      cs.webkitMaskSize = cs.maskSize = size.join();
+      cs.webkitMaskPosition = cs.maskPosition = pos.join();
+      cs.webkitMaskRepeat = cs.maskRepeat = 'no-repeat';
+    }
+    return st;
+  }
   var range = document.createRange(), watched = new WeakSet();
   var resizeWatch = window.ResizeObserver ? new ResizeObserver(function(){ sync(); }) : null;
   function boxOf(el){
@@ -557,17 +714,56 @@
     }
     return { left: x0, top: y0, right: x1, bottom: y1, width: x1 - x0, height: y1 - y0 };
   }
+  var clips = new Map();
+  function clipBox(el){
+    var c = clips.get(el);
+    if (!c){
+      var r = el.getBoundingClientRect(), top = parseFloat(getComputedStyle(el).getPropertyValue('--clip-top')) || 0;
+      clips.set(el, c = { left: r.left, top: r.top + top, right: r.right, bottom: r.bottom });
+    }
+    return c;
+  }
   function measure(){
-    var els = document.querySelectorAll('[data-cutout]'), out = [];
+    var els = document.querySelectorAll('[data-cutout]'), out = [], pad = PARAMS.cutPadR * CW;
+    clips.clear();
     for (var i = 0; i < els.length; i++){
       var el = els[i], rects;
       if (resizeWatch && !watched.has(el)){ resizeWatch.observe(el); watched.add(el); }
       var mode = el.getAttribute('data-cutout');
       if (mode === 'box') rects = [boxOf(el)];
       else { range.selectNodeContents(el); rects = mode === 'block' ? [range.getBoundingClientRect()] : range.getClientRects(); }
+      if (!rects.length || !(rects[0].width > 0)) continue;
+      var clip = el.closest('[data-cutout-clip]'), c = clip && clipBox(clip);
+      var sweep = null, e, cut = 1, txt = 1;
+      if (el.hasAttribute('data-sweep')){
+        var cs = getComputedStyle(el);
+        cut = parseFloat(cs.getPropertyValue('--cut')); txt = parseFloat(cs.getPropertyValue('--txt'));
+        if (isNaN(cut)) cut = 1;
+        if (isNaN(txt)) txt = 1;
+        e = mode === 'box' ? rects[0] : el.getBoundingClientRect();
+        sweep = syncBands(el, e);
+      }
       for (var k = 0; k < rects.length; k++){
-        var r = rects[k];
-        if (r.width > 0 && r.height > 0) out.push({ x0: r.left / CW, y0: r.top / CH, x1: r.right / CW, y1: r.bottom / CH });
+        var r = rects[k], x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom;
+        if (c){ x0 = Math.max(x0, c.left); y0 = Math.max(y0, c.top); x1 = Math.min(x1, c.right); y1 = Math.min(y1, c.bottom); }
+        if (!(x1 > x0 && y1 > y0)) continue;
+        if (!sweep){ out.push({ x0: x0 / CW, y0: y0 / CH, x1: x1 / CW, y1: y1 / CH }); continue; }
+        /* Each band's hole, padding included, stops at that band's front:
+         * hard as far as --txt has opened it, soft on to --cut. */
+        var top = e.top - sweep.phase, span = e.width + pad;
+        for (var b = 0; b < sweep.bands.length; b++){
+          var by0 = Math.max(y0, top + b * CH), by1 = Math.min(y1, top + (b + 1) * CH);
+          if (by1 <= by0) continue;
+          var hard = bandAt(sweep.bands[b], txt), soft = bandAt(sweep.bands[b], cut);
+          for (var f = 0; f < 2; f++){
+            var o = f ? soft : hard;
+            if (f && soft <= hard) break;
+            var edge = Math.min(x1 + pad, e.left + span * o);
+            if (edge <= x0) continue;
+            var right = Math.min(x1, edge);
+            out.push({ x0: x0 / CW, y0: by0 / CH, x1: right / CW, y1: by1 / CH, padR: (edge - right) / CW, soft: !!f });
+          }
+        }
       }
     }
     return out;
@@ -575,15 +771,18 @@
   /* Called every display frame and on anything that moves text, so a
    * hole is never a frame behind its text. Redraws at once when the
    * holes changed; the model has already emptied what they cover. */
-  function sync(){
-    if (!field) return;
+  function sync(later){
+    if (!field) return false;
     var boxes = measure(), P = PARAMS;
     var key = JSON.stringify(boxes) + [P.cutPadL, P.cutPadR, P.cutPadT, P.cutPadB, P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB].join();
-    if (key === cutKey) return;
+    if (key === cutKey) return false;
+    document.documentElement.style.setProperty('--cut-pad', P.cutPadR * CW + 'px');
     cutKey = key;
     field.setCutouts(boxes);
     if (reduce) settle();
+    if (later === true) return true;
     draw();
+    return true;
   }
 
   function blit(s, glyph, grey, x, y, alpha){
@@ -648,15 +847,18 @@
   /* The display runs at its own rate; the field only steps and redraws
    * once a tick is owed, so it moves on its own clock (12fps by default). */
   function frame(now){
-    var tickMs = 1000 / PARAMS.fps;
-    owed += last ? now - last : tickMs;
+    var tickMs = 1000 / PARAMS.fps, dt = last ? now - last : tickMs, dirty = false;
+    owed += dt;
     last = now;
     if (owed >= tickMs){
       owed = Math.min(owed - tickMs, tickMs);
       field.step(tickMs);
-      draw();
+      dirty = true;
     }
-    sync();
+    /* holes first, so a hole that just went soft starts fading this frame */
+    if (sync(true)) dirty = true;
+    if (field.softTick(Math.min(dt, tickMs))) dirty = true;
+    if (dirty) draw();
     raf = requestAnimationFrame(frame);
   }
   function play(){
@@ -685,8 +887,9 @@
     bitmaps: GLYPHS,
     large: LARGE,
     reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
-    /* The cut cells, for the tuning page's hole overlay. */
-    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut }; },
+    /* The cut cells, for the tuning page's hole overlay, and the soft
+     * cells and tones, for the review probes. */
+    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone, fill: field.fill }; },
     /* What is on screen now: for each section, how many cells show each
      * tone of its ramp, plus the share of tiles at each size. */
     stats: function(){

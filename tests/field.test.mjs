@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-const { createField, PARAMS, DEFAULTS, GLYPHS, CHARS, TONES } = createRequire(import.meta.url)('../field.js');
+const { createField, sweepBands, bandAt, PARAMS, DEFAULTS, GLYPHS, CHARS, TONES } = createRequire(import.meta.url)('../field.js');
 
 const STEP = 1000 / DEFAULTS.fps; // the renderer steps the field at its fps
 const ASPECT = 16 / 12;
@@ -532,5 +532,137 @@ test('the fill rises with the field on load instead of starting at full', () => 
     field.setCutouts([{ x0: 5, y0: 5, x1: 15, y1: 10 }]);
     field.step(STEP);
     assert.ok(field.fill[7 * 30 + 8] < 0.2, `fill at ${field.fill[7 * 30 + 8]} after one tick`);
+  });
+});
+
+// Glyphs painted over any cell of a mask.
+function paintedIn(field, mask) {
+  return painted(field).filter(([s, x, y]) => {
+    for (let cy = Math.floor(y); cy < y + s && cy < field.rows; cy++)
+      for (let cx = Math.floor(x); cx < x + s && cx < field.cols; cx++)
+        if (mask[cy * field.cols + cx]) return true;
+    return false;
+  });
+}
+
+test('a soft cutout empties under the slew, one tone per tick, instead of all at once', () => {
+  withParams({ bigAmount: 0.3, midAmount: 0.2, smallAmount: 0.3, ...holeParams(0, 0, 0) }, () => {
+    const field = createField(12, 96, 54, ASPECT);
+    run(field, 8 * SECOND);
+    field.setCutouts([{ x0: 10, y0: 10, x1: 80, y1: 40, soft: true }]);
+    assert.equal(cutCells(field).length, 0, 'a soft cutout counted as hard');
+    let lit = 0;
+    for (let y = 10; y < 40; y++) for (let x = 10; x < 80; x++) if (field.tone[y * 96 + x]) lit++;
+    assert.ok(lit > 100, `only ${lit} cells lit: the soft hole emptied on the call`);
+    let prev = Uint8Array.from(field.tone);
+    run(field, SECOND, STEP, () => {
+      for (let i = 0; i < field.tone.length; i++) assert.ok(prev[i] - field.tone[i] <= 1, `cell ${i} dropped more than a tone`);
+      prev = Uint8Array.from(field.tone);
+    });
+    assert.deepEqual(paintedIn(field, field.soft), [], 'glyphs still painted in a settled soft hole');
+    run(field, 3 * SECOND, STEP, () => assert.deepEqual(paintedIn(field, field.soft), []));
+  });
+});
+
+test('a hard cutout wins where it overlaps a soft one, and both get the fill', () => {
+  withParams({ ...holeParams(0, 0, 0), cutFade: 0.1 }, () => {
+    const field = createField(4, 40, 20, ASPECT);
+    run(field, 3 * SECOND);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 30, y1: 12, soft: true }, { x0: 5, y0: 5, x1: 12, y1: 12 }]);
+    const hard = 6 * 40 + 6, soft = 6 * 40 + 20;
+    assert.ok(field.cut[hard] && !field.soft[hard]);
+    assert.ok(!field.cut[soft] && field.soft[soft]);
+    run(field, SECOND);
+    assert.equal(field.fill[hard], 1);
+    assert.equal(field.fill[soft], 1);
+  });
+});
+
+test('a box can carry its own right padding, for a hole still sweeping open', () => {
+  withParams({ ...holeParams(0, 0, 0), cutPadR: 8 }, () => {
+    const field = createField(3, 40, 10, ASPECT);
+    field.setCutouts([{ x0: 2, y0: 2, x1: 5, y1: 3, padR: 1.5 }]);
+    assert.deepEqual(cutCells(field), [[2, 2], [3, 2], [4, 2], [5, 2], [6, 2]]);
+    field.setCutouts([{ x0: 2, y0: 2, x1: 5, y1: 3 }]);
+    assert.equal(cutCells(field).length, 11, 'without padR the param applies');
+  });
+});
+
+test('sweep bands: every band opens inside the timeline, fully, and the same way each time', () => {
+  const bands = sweepBands(7, 24, { bandShuffle: 0.7, bandLength: 0.35, bandJitter: 0.5 });
+  assert.equal(bands.length, 24);
+  for (const [a, b] of bands) assert.ok(a >= 0 && b <= 1 + 1e-9 && b > a, `window ${a}..${b}`);
+  assert.deepEqual(sweepBands(7, 24, { bandShuffle: 0.7, bandLength: 0.35, bandJitter: 0.5 }), bands);
+  for (const w of bands) { assert.equal(bandAt(w, 0), 0); assert.equal(bandAt(w, 1), 1); }
+  let prev = 0;
+  for (let c = 0; c <= 1; c += 0.01) { const v = bandAt(bands[3], c); assert.ok(v >= prev - 1e-12, 'a band closed while the timeline advanced'); prev = v; }
+});
+
+test('sweep bands: no shuffle is a top-down cascade, full shuffle is not', () => {
+  const cascade = sweepBands(7, 20, { bandShuffle: 0, bandLength: 0.3, bandJitter: 0 });
+  for (let i = 1; i < cascade.length; i++) assert.ok(cascade[i][0] >= cascade[i - 1][0], `band ${i} starts before the one above`);
+  const glitch = sweepBands(7, 20, { bandShuffle: 1, bandLength: 0.3, bandJitter: 0.5 });
+  let inversions = 0;
+  for (let i = 1; i < glitch.length; i++) if (glitch[i][0] < glitch[i - 1][0]) inversions++;
+  assert.ok(inversions >= 4, `only ${inversions} bands out of order`);
+});
+
+test('a soft cell steps down exactly one tone per tick, so six ticks always empty it', () => {
+  withParams({ gain: 4, bigAmount: 0, midAmount: 0, smallAmount: 0, ...holeParams(0, 0, 0) }, () => {
+    const field = createField(21, 80, 40, ASPECT);
+    run(field, 6 * SECOND);
+    let full = 0;
+    for (let y = 5; y < 35; y++) for (let x = 5; x < 75; x++) if (field.tone[y * 80 + x] === TONES) full++;
+    assert.ok(full > 50, `only ${full} cells at full tone to test with`);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 75, y1: 35, soft: true }]);
+    let prev = Uint8Array.from(field.tone);
+    for (let k = 0; k < TONES; k++) {
+      field.step(STEP);
+      for (let i = 0; i < field.tone.length; i++) if (field.soft[i] && prev[i]) assert.equal(field.tone[i], prev[i] - 1, `soft cell ${i} went ${prev[i]} to ${field.tone[i]}`);
+      prev = Uint8Array.from(field.tone);
+    }
+    for (let i = 0; i < field.tone.length; i++) if (field.soft[i]) assert.equal(field.tone[i], 0, `soft cell ${i} still lit after ${TONES} ticks`);
+  });
+});
+
+test('between ticks, soft cells fade one tone per 25ms frame, and larger glyphs over them fade out', () => {
+  withParams({ gain: 4, bigAmount: 0.4, midAmount: 0.3, smallAmount: 0.3, ...holeParams(0, 0, 0) }, () => {
+    const field = createField(22, 96, 54, ASPECT);
+    run(field, 8 * SECOND);
+    field.setCutouts([{ x0: 10, y0: 10, x1: 80, y1: 40, soft: true }]);
+    let prev = Uint8Array.from(field.tone), steps = 0;
+    for (let t = 0; t < 250; t += 16) {
+      if (field.softTick(16)) steps++;
+      for (let i = 0; i < field.tone.length; i++) assert.ok(prev[i] - field.tone[i] <= 1, `cell ${i} dropped two tones in one frame`);
+      prev = Uint8Array.from(field.tone);
+    }
+    assert.ok(steps >= 8, `only ${steps} fade steps in 250ms`);
+    assert.deepEqual(paintedIn(field, field.soft), [], 'glyphs still painted in a soft hole after 250ms of frames');
+  });
+});
+
+test("a hole's fill also eases between ticks, on the display clock", () => {
+  withParams({ ...holeParams(0, 0, 0), cutFade: 0.1 }, () => {
+    const field = createField(4, 30, 20, ASPECT);
+    run(field, 3 * SECOND);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 15, y1: 10, soft: true }]);
+    const inside = 7 * 30 + 8;
+    field.softTick(16);
+    assert.ok(field.fill[inside] > 0.1 && field.fill[inside] < 0.2, `fill ${field.fill[inside]} after one 16ms frame`);
+    for (let k = 0; k < 6; k++) field.softTick(16);
+    assert.equal(field.fill[inside], 1);
+  });
+});
+
+test('a tick and a soft fade step in the same frame still move a soft cell only one tone', () => {
+  withParams({ gain: 4, bigAmount: 0, midAmount: 0, smallAmount: 0, ...holeParams(0, 0, 0) }, () => {
+    const field = createField(23, 60, 30, ASPECT);
+    run(field, 6 * SECOND);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 55, y1: 25, soft: true }]);
+    field.softTick(20);
+    const prev = Uint8Array.from(field.tone);
+    field.step(STEP);
+    field.softTick(16);
+    for (let i = 0; i < field.tone.length; i++) assert.ok(prev[i] - field.tone[i] <= 1, `cell ${i} went ${prev[i]} to ${field.tone[i]} in one frame`);
   });
 });
