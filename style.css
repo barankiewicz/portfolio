@@ -51,10 +51,10 @@
   /* Content pages: how far each stratum steps right (whole cells), and
      the sweep that opens and closes their holes. */
   --step: 72px;
-  --sweep: .45s;              /* all of a block's bands opening */
+  --sweep: .38s;              /* all of a block's bands opening */
   --lag: .25s;                /* text behind the erosion; at least six soft fade steps (6 x 25ms) plus slow frames */
   --stagger: 35ms;            /* between blocks opening together */
-  --shut: .16s;               /* text wiping out on close */
+  --shut: .14s;               /* text wiping out on close */
 }
 
 /* === RESET === */
@@ -72,7 +72,7 @@ body{
   overflow:hidden;height:100vh;margin:0
 }
 ::selection{background:var(--accent);color:var(--bg)}
-body.page-open .hero{display:none}
+body.page-open .hero:not(.closing){display:none}
 
 /* A page scrolls in a box the size of the screen, so a wheel or a
    swipe anywhere scrolls it, but everything above --page-top (the nav's
@@ -80,7 +80,7 @@ body.page-open .hero{display:none}
    menu. Its holes are cut the same way (data-cutout-clip, --clip-top).
    script.js sets --page-top and --rail-x from where the nav landed. */
 .page{display:none}
-.page.active{
+.page.active,.page.closing{
   display:block;
   position:fixed;inset:0;z-index:2;
   overflow-y:auto;overscroll-behavior:contain;
@@ -92,8 +92,11 @@ body.page-open .hero{display:none}
   color:var(--text-primary);
   scrollbar-width:thin;scrollbar-color:#444 transparent;
 }
-.page.active::-webkit-scrollbar{width:6px}
-.page.active::-webkit-scrollbar-thumb{background:#444}
+.page.active::-webkit-scrollbar,.page.closing::-webkit-scrollbar{width:6px}
+.page.active::-webkit-scrollbar-thumb,.page.closing::-webkit-scrollbar-thumb{background:#444}
+/* .closing: the route being left, still on screen while its holes close */
+.page.closing{z-index:1}
+.page.closing a{pointer-events:none}
 
 /* === ASCII FIELD ===
    Fixed behind everything, at full strength on every route: page text

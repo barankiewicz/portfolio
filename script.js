@@ -49,6 +49,8 @@
 
   function show(scope){
     shown = scope;
+    clearTimeout(scope.closingTimer);
+    scope.classList.remove('closing');
     var isHero = scope === hero;
     document.body.classList.toggle('page-open', !isHero);
     var pages = document.querySelectorAll('.page');
@@ -58,11 +60,16 @@
     for (var k = 0; k < els.length; k++) reveal.observe(els[k]);
   }
 
-  /* Closing waits for the open blocks on screen, last first, then the
-   * route swaps. A route change during a close cuts it short. */
-  var closing = 0;
+  /* The old route's open blocks on screen close, last first, and the
+   * new route starts opening while they do: as soon as the last old
+   * block starts closing. New text trails its holes by --lag, longer
+   * than old text takes to wipe out (--shut), so the two never share the
+   * screen. The old route stays
+   * on screen as .closing, not clickable, until its holes are gone. A
+   * route change during a close cuts it short. */
+  var opening = 0;
   function closeAndShow(from, to){
-    clearTimeout(closing);
+    clearTimeout(opening);
     var els = strata(from), vis = [], h = window.innerHeight;
     for (var i = 0; i < els.length; i++){
       reveal.unobserve(els[i]);
@@ -76,8 +83,12 @@
       vis[j].classList.remove('open');
     }
     shown = null;
-    var shut = parseFloat(getComputedStyle(root).getPropertyValue('--shut')) * 1000 || 320;
-    closing = setTimeout(function(){ show(to); }, vis.length ? shut * 1.2 + (vis.length - 1) * 30 : 0);
+    var shut = parseFloat(getComputedStyle(root).getPropertyValue('--shut')) * 1000 || 140, tail = (vis.length - 1) * 30;
+    if (!vis.length){ show(to); return; }
+    from.classList.add('closing');
+    clearTimeout(from.closingTimer);
+    from.closingTimer = setTimeout(function(){ from.classList.remove('closing'); }, shut * 1.2 + tail + 50);
+    opening = setTimeout(function(){ show(to); }, tail);
   }
 
   /* === SCREENSHOT DITHER ===
@@ -114,7 +125,7 @@
     if (to === current) return;
     var from = current;
     current = to;
-    if (!from || reduce){ clearTimeout(closing); show(to); return; }
+    if (!from || reduce){ clearTimeout(opening); show(to); return; }
     closeAndShow(from, to);
   }
   window.addEventListener('hashchange', route);

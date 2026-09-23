@@ -653,3 +653,16 @@ test("a hole's fill also eases between ticks, on the display clock", () => {
     assert.equal(field.fill[inside], 1);
   });
 });
+
+test('a tick and a soft fade step in the same frame still move a soft cell only one tone', () => {
+  withParams({ gain: 4, bigAmount: 0, midAmount: 0, smallAmount: 0, ...holeParams(0, 0, 0) }, () => {
+    const field = createField(23, 60, 30, ASPECT);
+    run(field, 6 * SECOND);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 55, y1: 25, soft: true }]);
+    field.softTick(20);
+    const prev = Uint8Array.from(field.tone);
+    field.step(STEP);
+    field.softTick(16);
+    for (let i = 0; i < field.tone.length; i++) assert.ok(prev[i] - field.tone[i] <= 1, `cell ${i} went ${prev[i]} to ${field.tone[i]} in one frame`);
+  });
+});

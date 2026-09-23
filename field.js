@@ -492,6 +492,8 @@
         }
       }
 
+      /* this tick was the soft cells' step for this frame */
+      softOwed = 0;
       for (var ti = 0; ti < f.tiles.length; ti++){
         var t = f.tiles[ti];
         stepLargeCells(t, dt);
