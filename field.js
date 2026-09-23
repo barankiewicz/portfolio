@@ -16,6 +16,7 @@
   var LARGE = [1.5, 2, 3];
   var SMALL = 0.5, FINE = TILE / SMALL;         // a small tile is 12x12 quarter cells
   var INTRO = 1.6;                             // whole field fades up on load
+  var SOFT_MS = 25, SOFT_FADE = 0.1;           // a soft hole's own clock, see softTick
 
   /* Every tunable value, read live on each tick so the tuning page can
    * change them while the field runs. Three sections sit side by side,
@@ -215,7 +216,7 @@
       real: 0, time: 0,
       level: null, tone: null, grey: null, glyph: null, section: null, cut: null, soft: null, fill: null,
       tiles: [], waves: [makeWaves(rnd), makeWaves(rnd), makeWaves(rnd)],
-      step: step, resize: resize, setCutouts: setCutouts
+      step: step, resize: resize, setCutouts: setCutouts, softTick: softTick
     };
     var rampGlyphs = [[], [], []], toneStep = 1, cutouts = [];
 
@@ -384,6 +385,69 @@
           }
         }
       }
+    }
+    /* Between ticks, on the display's clock: a soft hole empties one
+     * tone per SOFT_MS (at most one per call), and larger glyphs over it
+     * crossfade out over SOFT_FADE seconds. Still one tone at a time, but
+     * a full glyph is gone in ~150ms rather than the six ticks of the
+     * field's own clock, so a sweep's text can follow its hole quickly.
+     * Hole fills ease here as well as on the tick.
+     * Returns whether anything changed, so the caller knows to redraw. */
+    var softOwed = 0;
+    function softTick(dtMs){
+      var any = false, dt = dtMs / 1000;
+      /* Hole fills ease per frame too, or a fast sweep's grey panel would
+       * advance in the field's 100ms steps. */
+      var gain = f.real < INTRO ? easeInOutSine(f.real / INTRO) : 1, fillStep = dt / PARAMS.cutFade;
+      for (var fi = 0; fi < f.fill.length; fi++){
+        var want = f.cut[fi] || f.soft[fi] ? gain : 0, was = f.fill[fi];
+        if (want === was) continue;
+        f.fill[fi] = want > was ? Math.min(want, was + fillStep) : Math.max(want, was - fillStep);
+        any = true;
+      }
+      for (var ti = 0; ti < f.tiles.length; ti++){
+        var t = f.tiles[ti];
+        for (var si = 0; si < LARGE.length; si++){
+          var sz = LARGE[si], n = TILE / sz;
+          for (var c = 0; c < n * n; c++){
+            var cell = t.cells[sz][c];
+            if (!cell.glyph && cell.u >= 1) continue;
+            if (!inMask(f.soft, t.x * TILE + (c % n) * sz, t.y * TILE + Math.floor(c / n) * sz, sz)) continue;
+            if (cell.glyph){ cell.fromGlyph = cell.glyph; cell.fromGrey = cell.grey; cell.glyph = cell.grey = 0; cell.u = 0; }
+            cell.u = Math.min(1, cell.u + dt / SOFT_FADE);
+            any = true;
+          }
+        }
+      }
+      softOwed = Math.min(softOwed + dtMs, SOFT_MS);
+      if (softOwed < SOFT_MS) return any;
+      softOwed = 0;
+      for (var i = 0; i < f.tone.length; i++){
+        if (!f.soft[i] || !f.tone[i]) continue;
+        f.level[i] = softStep(f.level[i], f.tone[i]);
+        var tone = toneOf(f.level[i]);
+        f.tone[i] = tone; f.grey[i] = greyOf(tone); f.glyph[i] = glyphFor(f.section[i], tone);
+        any = true;
+      }
+      for (var tj = 0; tj < f.tiles.length; tj++){
+        var q = f.tiles[tj].fine;
+        if (!q) continue;
+        var tx = f.tiles[tj].x * TILE, ty = f.tiles[tj].y * TILE;
+        for (var k = 0; k < FINE * FINE; k++){
+          var x = tx + ((k % FINE) >> 1), y = ty + (Math.floor(k / FINE) >> 1);
+          if (x >= f.cols || y >= f.rows || !q.tone[k] || !f.soft[y * f.cols + x]) continue;
+          q.level[k] = softStep(q.level[k], q.tone[k]);
+          var qt = toneOf(q.level[k]);
+          q.tone[k] = qt; q.grey[k] = greyOf(qt); q.glyph[k] = glyphFor(f.section[y * f.cols + x], qt);
+          any = true;
+        }
+      }
+      return any;
+    }
+    function inMask(mask, x0, y0, s){
+      for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
+        for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) if (mask[y * f.cols + x]) return true;
+      return false;
     }
     /* Whether a glyph of size s at (x0, y0) touches a cut cell. */
     function inCut(x0, y0, s){
@@ -705,16 +769,18 @@
   /* Called every display frame and on anything that moves text, so a
    * hole is never a frame behind its text. Redraws at once when the
    * holes changed; the model has already emptied what they cover. */
-  function sync(){
-    if (!field) return;
+  function sync(later){
+    if (!field) return false;
     var boxes = measure(), P = PARAMS;
     var key = JSON.stringify(boxes) + [P.cutPadL, P.cutPadR, P.cutPadT, P.cutPadB, P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB].join();
-    if (key === cutKey) return;
+    if (key === cutKey) return false;
     document.documentElement.style.setProperty('--cut-pad', P.cutPadR * CW + 'px');
     cutKey = key;
     field.setCutouts(boxes);
     if (reduce) settle();
+    if (later === true) return true;
     draw();
+    return true;
   }
 
   function blit(s, glyph, grey, x, y, alpha){
@@ -779,15 +845,18 @@
   /* The display runs at its own rate; the field only steps and redraws
    * once a tick is owed, so it moves on its own clock (12fps by default). */
   function frame(now){
-    var tickMs = 1000 / PARAMS.fps;
-    owed += last ? now - last : tickMs;
+    var tickMs = 1000 / PARAMS.fps, dt = last ? now - last : tickMs, dirty = false;
+    owed += dt;
     last = now;
     if (owed >= tickMs){
       owed = Math.min(owed - tickMs, tickMs);
       field.step(tickMs);
-      draw();
+      dirty = true;
     }
-    sync();
+    /* holes first, so a hole that just went soft starts fading this frame */
+    if (sync(true)) dirty = true;
+    if (field.softTick(Math.min(dt, tickMs))) dirty = true;
+    if (dirty) draw();
     raf = requestAnimationFrame(frame);
   }
   function play(){
@@ -818,7 +887,7 @@
     reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
     /* The cut cells, for the tuning page's hole overlay, and the soft
      * cells and tones, for the review probes. */
-    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone }; },
+    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone, fill: field.fill }; },
     /* What is on screen now: for each section, how many cells show each
      * tone of its ramp, plus the share of tiles at each size. */
     stats: function(){

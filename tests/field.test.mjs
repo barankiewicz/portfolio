@@ -624,3 +624,32 @@ test('a soft cell steps down exactly one tone per tick, so six ticks always empt
     for (let i = 0; i < field.tone.length; i++) if (field.soft[i]) assert.equal(field.tone[i], 0, `soft cell ${i} still lit after ${TONES} ticks`);
   });
 });
+
+test('between ticks, soft cells fade one tone per 25ms frame, and larger glyphs over them fade out', () => {
+  withParams({ gain: 4, bigAmount: 0.4, midAmount: 0.3, smallAmount: 0.3, ...holeParams(0, 0, 0) }, () => {
+    const field = createField(22, 96, 54, ASPECT);
+    run(field, 8 * SECOND);
+    field.setCutouts([{ x0: 10, y0: 10, x1: 80, y1: 40, soft: true }]);
+    let prev = Uint8Array.from(field.tone), steps = 0;
+    for (let t = 0; t < 250; t += 16) {
+      if (field.softTick(16)) steps++;
+      for (let i = 0; i < field.tone.length; i++) assert.ok(prev[i] - field.tone[i] <= 1, `cell ${i} dropped two tones in one frame`);
+      prev = Uint8Array.from(field.tone);
+    }
+    assert.ok(steps >= 8, `only ${steps} fade steps in 250ms`);
+    assert.deepEqual(paintedIn(field, field.soft), [], 'glyphs still painted in a soft hole after 250ms of frames');
+  });
+});
+
+test("a hole's fill also eases between ticks, on the display clock", () => {
+  withParams({ ...holeParams(0, 0, 0), cutFade: 0.1 }, () => {
+    const field = createField(4, 30, 20, ASPECT);
+    run(field, 3 * SECOND);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 15, y1: 10, soft: true }]);
+    const inside = 7 * 30 + 8;
+    field.softTick(16);
+    assert.ok(field.fill[inside] > 0.1 && field.fill[inside] < 0.2, `fill ${field.fill[inside]} after one 16ms frame`);
+    for (let k = 0; k < 6; k++) field.softTick(16);
+    assert.equal(field.fill[inside], 1);
+  });
+});

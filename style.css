@@ -51,10 +51,10 @@
   /* Content pages: how far each stratum steps right (whole cells), and
      the sweep that opens and closes their holes. */
   --step: 72px;
-  --sweep: .9s;               /* all of a block's bands opening */
-  --lag: .7s;                 /* text behind the erosion; at least the field's 6 ticks to empty */
-  --stagger: 70ms;            /* between blocks opening together */
-  --shut: .32s;               /* text wiping out on close */
+  --sweep: .45s;              /* all of a block's bands opening */
+  --lag: .25s;                /* text behind the erosion; at least six soft fade steps (6 x 25ms) plus slow frames */
+  --stagger: 35ms;            /* between blocks opening together */
+  --shut: .16s;               /* text wiping out on close */
 }
 
 /* === RESET === */
@@ -381,7 +381,7 @@ nav > *{pointer-events:auto}
   mask:linear-gradient(#000,#000) 0 0 / 0 0 no-repeat;
   transition:
     --txt var(--shut) linear calc(var(--i, 0) * 30ms),
-    --cut calc(var(--shut) * 1.4) linear calc(var(--i, 0) * 30ms + var(--shut) * .4);
+    --cut var(--shut) linear calc(var(--i, 0) * 30ms + var(--shut) * .2);
 }
 .js [data-sweep].open{
   --cut:1;--txt:1;

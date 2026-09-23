@@ -77,7 +77,7 @@
     }
     shown = null;
     var shut = parseFloat(getComputedStyle(root).getPropertyValue('--shut')) * 1000 || 320;
-    closing = setTimeout(function(){ show(to); }, vis.length ? shut * 1.8 + (vis.length - 1) * 30 : 0);
+    closing = setTimeout(function(){ show(to); }, vis.length ? shut * 1.2 + (vis.length - 1) * 30 : 0);
   }
 
   /* === SCREENSHOT DITHER ===
