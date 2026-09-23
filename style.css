@@ -262,6 +262,9 @@ nav > *{pointer-events:auto}
 /* on every route it sits over the pages, which scroll under its hole */
 .cloud.everywhere{z-index:3}
 body.page-open .cloud.everywhere.dim.open{opacity:.35}
+/* field blend: under the field (before it in <body>), no hole of its
+   own; cloud.js fades the video and the glyphs' colour in together */
+.js .cloud.blend{z-index:0;opacity:1;transition:none}
 
 /* === STRATA ===
    Every content block is its own hole in the field (data-cutout in the

@@ -628,6 +628,17 @@
   var GW = 6, GH = 8, PX = 0, CW = 0, CH = 0;
   var ticks = [];                              // called after each field tick (the cloud clip's ASCII take)
   var atlas = null, atlasGreys = '', dpr = 1, field = null, raf = 0, last = 0, owed = 0, cutKey = '';
+  /* A tint recolours the glyphs over a region of cells (the cloud clip's
+   * field blend, cloud.js). Glyphs touching the region are drawn into
+   * their own layer, which is then masked and coloured by compositing
+   * two small canvases of one pixel per cell over it, never by reading
+   * pixels back: show's alpha is how much of each cell's glyph stays,
+   * colour's rgb is its colour and alpha how much of it the glyph takes.
+   * paint, if set, then draws over the glyphs in the region's clip box
+   * (x, y, w, h in the layer's device px), so the video shows through
+   * them. { x, y, cols, rows, box: { x, y, cols, rows }, show, colour,
+   * paint } in cells. */
+  var tint = null, layer = null, lctx = null, lx0 = 0, ly0 = 0;
 
   /* One row of glyphs per grey, drawn pixel by pixel: hard edges, no
    * antialiasing, and only the three greys ever reach the canvas. */
@@ -815,9 +826,36 @@
 
   function blit(s, glyph, grey, x, y, alpha){
     if (!glyph || alpha <= 0) return;
-    if (alpha !== ctx.globalAlpha) ctx.globalAlpha = alpha;
-    ctx.drawImage(atlas, glyph * GW, grey * GH, GW, GH,
-      Math.round(x * CW * dpr), Math.round(y * CH * dpr), Math.round(s * CW * dpr), Math.round(s * CH * dpr));
+    var g = ctx, ox = 0, oy = 0;
+    if (tint && x < tint.x + tint.cols && x + s > tint.x && y < tint.y + tint.rows && y + s > tint.y){ g = lctx; ox = lx0; oy = ly0; }
+    if (alpha !== g.globalAlpha) g.globalAlpha = alpha;
+    g.drawImage(atlas, glyph * GW, grey * GH, GW, GH,
+      Math.round(x * CW * dpr) - ox, Math.round(y * CH * dpr) - oy, Math.round(s * CW * dpr), Math.round(s * CH * dpr));
+  }
+
+  function tintStart(){
+    lx0 = Math.round(tint.x * CW * dpr); ly0 = Math.round(tint.y * CH * dpr);
+    var w = Math.round((tint.x + tint.cols) * CW * dpr) - lx0, h = Math.round((tint.y + tint.rows) * CH * dpr) - ly0;
+    if (!layer){ layer = document.createElement('canvas'); lctx = layer.getContext('2d'); }
+    if (layer.width !== w || layer.height !== h){ layer.width = w; layer.height = h; }
+    else lctx.clearRect(0, 0, w, h);
+    lctx.globalAlpha = 1;
+    lctx.imageSmoothingEnabled = false;
+  }
+  function tintEnd(){
+    var w = layer.width, h = layer.height, b = tint.box;
+    lctx.globalAlpha = 1;
+    lctx.globalCompositeOperation = 'destination-in';
+    lctx.drawImage(tint.show, 0, 0, w, h);
+    lctx.globalCompositeOperation = 'source-atop';
+    lctx.drawImage(tint.colour, 0, 0, w, h);
+    if (tint.paint){
+      var bx = Math.round(b.x * CW * dpr) - lx0, by = Math.round(b.y * CH * dpr) - ly0;
+      tint.paint(lctx, bx, by, Math.round((b.x + b.cols) * CW * dpr) - lx0 - bx, Math.round((b.y + b.rows) * CH * dpr) - ly0 - by);
+    }
+    lctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(layer, lx0, ly0);
   }
 
   function drawLayer(t, s, alpha){
@@ -870,11 +908,13 @@
       ctx.fillRect(x0, y0, Math.round((cx + 1) * CW * dpr) - x0, Math.round((cy + 1) * CH * dpr) - y0);
     }
     ctx.globalAlpha = 1;
+    if (tint) tintStart();
     for (var i = 0; i < field.tiles.length; i++){
       var t = field.tiles[i];
       if (t.from === t.to) drawLayer(t, t.to, 1);
       else { drawLayer(t, t.from, 1 - t.mix); drawLayer(t, t.to, t.mix); }
     }
+    if (tint) tintEnd();
   }
 
   /* The display runs at its own rate; the field only steps and redraws
@@ -935,6 +975,10 @@
      * cells and tones, for the review probes. */
     holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone, fill: field.fill, section: field.section }; },
     ticks: ticks,
+    /* the cloud clip's field blend: a tint (see above) or null, and a
+     * redraw for when it changes between ticks */
+    tint: function(t){ tint = t || null; },
+    redraw: function(){ if (field) draw(); },
     /* What is on screen now: for each section, how many cells show each
      * tone of its ramp, plus the share of tiles at each size. */
     stats: function(){

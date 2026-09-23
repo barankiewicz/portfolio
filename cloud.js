@@ -241,7 +241,8 @@
     if (box && box.key === key) return true;
     var cols = Math.round(r.width / holes.cw), rows = Math.round(r.height / holes.ch);
     box = { key: key, cols: cols, rows: rows, gx: Math.round(r.left / holes.cw), gy: Math.round(r.top / holes.ch), w: r.width, h: r.height,
-      rects: coverRects(cols, rows, r.width, r.height, SW, SH), tone: new Uint8Array(cols * rows), fresh: true };
+      rects: coverRects(cols, rows, r.width, r.height, SW, SH), tone: new Uint8Array(cols * rows), fresh: true,
+      level: new Float32Array(cols * rows).fill(1), u: new Float32Array(cols * rows), rgb: new Float32Array(cols * rows * 3), rgbFrame: -1 };
     canvas.width = Math.round(r.width * d); canvas.height = Math.round(r.height * d);
     /* where PORTFOLIO is placed from (style.css) */
     var rs = document.documentElement.style;
@@ -253,6 +254,7 @@
     takeImg = takeCtx.createImageData(take.width, take.height);
     /* a glitch's bands were cut for the old box */
     if (glitch){ glitch = null; episode = []; schedule(clock); }
+    tinted = null;
     dirty = true;
     return true;
   }
@@ -289,6 +291,102 @@
     }
     box.fresh = false;
     takeCtx.putImageData(takeImg, 0, 0);
+  }
+
+  /* === FIELD BLEND ===
+   * The clip sits under the field instead of in a hole, and the field
+   * runs across it unbroken. Per cell of the box, the field's tone picks
+   * whether its glyph shows (in the video's colour) and how much video
+   * stays behind it; this canvas draws the video and the backdrop, the
+   * field draws the glyphs through its tint (field.js). Glyphs within
+   * edgeReach cells of the box take the nearest edge cell's colour. */
+  var tinted = null, appear = 0;
+  function blending(){ return PARAMS.mode === 'blend'; }
+  function tintKey(){ return Math.max(0, Math.ceil(PARAMS.edgeReach)) + ',' + PARAMS.tint; }
+  function tintFor(){
+    var reach = Math.max(0, Math.ceil(PARAMS.edgeReach)), key = tintKey();
+    if (tinted && tinted.key === key) return tinted;
+    var cols = box.cols + 2 * reach, rows = box.rows + 2 * reach;
+    function small(){ var c = document.createElement('canvas'); c.width = cols; c.height = rows; return c; }
+    tinted = { key: key, reach: reach, x: box.gx - reach, y: box.gy - reach, cols: cols, rows: rows,
+      box: { x: box.gx, y: box.gy, cols: box.cols, rows: box.rows }, show: small(), colour: small(),
+      paint: PARAMS.tint === 'pixel' ? paintPixels : null };
+    tinted.showImg = tinted.show.getContext('2d').createImageData(cols, rows);
+    tinted.colourImg = tinted.colour.getContext('2d').createImageData(cols, rows);
+    return tinted;
+  }
+  /* Each box cell's glyph and backdrop from the field's tone under it,
+   * on each field tick; dtMs null settles the crossfade where it is
+   * heading. */
+  function stepBlend(dtMs){
+    var P = PARAMS, holes = field.holes();
+    for (var r = 0; r < box.rows; r++) for (var c = 0; c < box.cols; c++){
+      var i = r * box.cols + c, gx = box.gx + c, gy = box.gy + r;
+      var tone = gx >= 0 && gy >= 0 && gx < holes.cols && gy < holes.rows ? holes.tone[gy * holes.cols + gx] : 0, ascii = blendShows(tone, P);
+      if (P.backdrop === 'fade'){ box.u[i] = dtMs == null ? +ascii : blendFade(box.u[i], ascii, dtMs, P); box.level[i] = 1 - box.u[i]; }
+      else { box.u[i] = +ascii; box.level[i] = blendBackdrop(tone, P); }
+    }
+    dirty = true;
+  }
+  /* The tint's two canvases: how much of each glyph shows, and its
+   * colour, the boosted mean of the video under the cell (or, past the
+   * box, under the nearest edge cell) as far as edgeWeight and the
+   * blend's own fade-in say. */
+  function paintTint(){
+    var P = PARAMS, t = tintFor(), k = frameAt(clock);
+    if (box.rgbFrame !== k){
+      for (var i = 0; i < box.rects.length; i++){
+        var q = box.rects[i], rgb = boost(cellMean(cells, SW, SH, k, q[0], q[1], q[2], q[3]), P.boost);
+        box.rgb[3 * i] = rgb[0]; box.rgb[3 * i + 1] = rgb[1]; box.rgb[3 * i + 2] = rgb[2];
+      }
+      box.rgbFrame = k;
+    }
+    var show = t.showImg.data, colour = t.colourImg.data;
+    for (var rr = 0; rr < t.rows; rr++) for (var rc = 0; rc < t.cols; rc++){
+      var c = rc - t.reach, r = rr - t.reach, o = 4 * (rr * t.cols + rc);
+      var inside = c >= 0 && r >= 0 && c < box.cols && r < box.rows;
+      var n = Math.min(box.rows - 1, Math.max(0, r)) * box.cols + Math.min(box.cols - 1, Math.max(0, c));
+      show[o + 3] = inside ? Math.round(255 * box.u[n]) : 255;
+      colour[o] = box.rgb[3 * n]; colour[o + 1] = box.rgb[3 * n + 1]; colour[o + 2] = box.rgb[3 * n + 2];
+      colour[o + 3] = Math.round(255 * appear * edgeWeight(edgeDistance(c, r, box.cols, box.rows), P));
+    }
+    t.show.getContext('2d').putImageData(t.showImg, 0, 0);
+    t.colour.getContext('2d').putImageData(t.colourImg, 0, 0);
+    field.tint(t);
+  }
+  /* tint 'pixel': the video itself through the glyphs over the box */
+  function paintPixels(g, x, y, w, h){
+    var img = frames[frameAt(clock)], s = Math.max(w / img.width, h / img.height), k = 1 + PARAMS.boost;
+    g.save();
+    g.beginPath(); g.rect(x, y, w, h); g.clip();
+    g.globalAlpha = appear;
+    g.imageSmoothingEnabled = true;
+    if ('filter' in g) g.filter = 'saturate(' + k + ') brightness(' + k + ')';
+    g.drawImage(img, x + (w - img.width * s) / 2, y + (h - img.height * s) / 2, img.width * s, img.height * s);
+    g.restore();
+  }
+  function drawBlend(){
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = appear;
+    ctx.imageSmoothingEnabled = true;
+    cover(frames[frameAt(clock)]);
+    var sx = canvas.width / box.cols, sy = canvas.height / box.rows;
+    ctx.fillStyle = '#000';
+    for (var i = 0; i < box.level.length; i++){
+      if (box.level[i] >= 1) continue;
+      var c = i % box.cols, r = (i - c) / box.cols, x0 = Math.round(c * sx), y0 = Math.round(r * sy);
+      ctx.globalAlpha = appear * (1 - box.level[i]);
+      ctx.fillRect(x0, y0, Math.round((c + 1) * sx) - x0, Math.round((r + 1) * sy) - y0);
+    }
+    ctx.globalAlpha = 1;
+  }
+  /* The field ticks: every box cell has a new tone, so the tint follows
+   * before the field draws, in the same frame. */
+  function onTick(){
+    ticked = true;
+    if (!ready || !box || !blending()) return;
+    stepBlend(1000 / field.params.fps);
+    paintTint();
   }
 
   /* === PLAYBACK AND GLITCHES === */
@@ -335,9 +433,9 @@
   }
   function draw(){
     var k = frameAt(clock);
-    ctx.imageSmoothingEnabled = true;
-    cover(frames[k]);
     shownFrame = k;
+    if (blending()) drawBlend();
+    else { ctx.imageSmoothingEnabled = true; cover(frames[k]); }
     if (glitch){
       var sy = canvas.height / box.rows;
       ctx.imageSmoothingEnabled = false;
@@ -374,11 +472,18 @@
   /* home: the clip lives in the hero, so it opens and closes with the
    * hero's lines on a route change. all: it lives outside every route
    * and stays open, dimmed while a page is open if dim is on. */
+  /* blend: under the field, before it in <body>, with no hole of its
+   * own; on 'home' it fades out while a page is open instead. */
   function place(){
-    var P = PARAMS, parent = P.routes === 'all' ? away : home;
+    var P = PARAMS, blend = blending(), parent = P.routes === 'all' || blend ? away : home;
     if (canvas.parentNode !== parent) parent.insertBefore(canvas, parent === away ? away.firstChild : null);
     canvas.classList.toggle('everywhere', P.routes === 'all');
     canvas.classList.toggle('dim', !!P.dim);
+    canvas.classList.toggle('blend', blend);
+    if (ready && blend === canvas.hasAttribute('data-cutout')){
+      if (blend) canvas.removeAttribute('data-cutout'); else canvas.setAttribute('data-cutout', 'box');
+    }
+    if (!blend && tinted){ tinted = null; field.tint(null); field.redraw(); }
     if (P.routes === 'all' && swept) canvas.classList.add('open');
   }
 
@@ -389,7 +494,15 @@
     place();
     if (!fit()) return;
     clock += dt;
-    stepGlitches();
+    if (blending()){
+      if (glitch){ glitch = null; episode = []; schedule(clock); }
+      var to = PARAMS.routes === 'all' || !document.body.classList.contains('page-open') ? 1 : 0, was = appear;
+      appear = to > appear ? Math.min(to, appear + dt / (1000 * PARAMS.blendIn)) : Math.max(to, appear - dt / (1000 * PARAMS.blendIn));
+      /* the tint's colours follow the video frame and the fade-in */
+      if (!tinted || appear !== was || box.rgbFrame !== frameAt(clock) || tinted.key !== tintKey()){
+        paintTint(); field.redraw(); dirty = true;
+      }
+    } else stepGlitches();
     if (glitch && ticked){ drawTake(frameAt(clock)); dirty = true; }
     ticked = false;
     if (dirty || frameAt(clock) !== shownFrame || introHole().join() !== introCells) draw();
@@ -408,8 +521,10 @@
   function show(){
     ready = true;
     fit();
+    /* reduced motion: one settled blend frame, there is no loop */
+    if (blending() && reduce){ appear = 1; stepBlend(null); paintTint(); field.redraw(); }
     draw();
-    canvas.setAttribute('data-cutout', 'box');
+    if (!blending()) canvas.setAttribute('data-cutout', 'box');
     canvas.setAttribute('data-sweep', '');
     if (intro){ intro.setAttribute('data-cutout', 'text'); intro.setAttribute('data-sweep', ''); }
     place();
@@ -439,7 +554,7 @@
     show();
     if (reduce) return;
     schedule(0);
-    field.ticks.push(function(){ ticked = true; });
+    field.ticks.push(onTick);
     document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); else play(); });
     play();
   }).catch(function(){ canvas.remove(); });
