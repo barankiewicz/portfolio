@@ -50,7 +50,7 @@
     /* Cutouts: holes the field leaves around the page's text. Padding is
      * in cells on top of snapping outward; rag lets each row and column
      * of the edge stick out by up to that many more cells. */
-    cutPadX: 1, cutPadY: 0.5, cutRag: 0
+    cutPadX: 2, cutPadY: 0, cutRag: 0
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 

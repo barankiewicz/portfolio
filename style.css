@@ -5,6 +5,10 @@
 @font-face{font-family:'Inter';font-style:normal;font-weight:300 800;font-display:swap;src:url(fonts/inter-300-800.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
 @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 700;font-display:swap;src:url(fonts/jetbrains-mono-ext-400-700.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
 @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 700;font-display:swap;src:url(fonts/jetbrains-mono-400-700.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Geist';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-ext-100-900.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Geist';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-100-900.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-mono-ext-100-900.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-mono-100-900.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
 
 /* === DESIGN TOKENS === */
 :root {
@@ -19,28 +23,29 @@
 
   /* Type and placement of the hero and nav, in plain numbers so the
      tuning page (.claude/review-04/tune.html) can drive them live. */
-  --console-font: 'JetBrains Mono', monospace;
-  --hero-font: 'Inter', sans-serif;
-  --hero-weight: 300;
-  --hero-vw: 7.5;             /* size in vw, between 1.5rem and --hero-max */
-  --hero-max: 7.5;            /* rem */
-  --hero-track: -.035;        /* em */
-  --hero-leading: 1;
+  --console-font: 'Geist Mono', monospace;
+  --hero-font: 'Geist', sans-serif;
+  --hero-weight: 500;
+  --hero-vw: 12.5;            /* size in vw, between 1.5rem and --hero-max */
+  --hero-max: 10;             /* rem */
+  --hero-fit: 9.3;            /* the name's width in em, so it never outgrows the gutters */
+  --hero-track: .01;          /* em */
+  --hero-leading: .7;
   --hero-case: none;
-  --hero-x: 50;               /* where the hero sits: 0 left edge .. 100 right edge */
-  --hero-y: 50;               /* 0 under the nav .. 100 bottom edge */
+  --hero-x: 17;               /* where the hero sits: 0 left edge .. 100 right edge */
+  --hero-y: 78;               /* 0 under the nav .. 100 bottom edge */
   --hero-align: center;
   --hero-top: 120px;          /* space kept clear for the nav */
-  --intro-size: .8;           /* rem */
-  --intro-track: .3;          /* em */
-  --intro-gap: 20;            /* px between PORTFOLIO and the name */
-  --nav-size: .8;             /* rem */
-  --nav-track: .14;           /* em */
-  --nav-gap: 4;               /* px between links */
-  --nav-pad: 12;              /* px either side of a link's text */
+  --intro-size: 1.1;          /* rem */
+  --intro-track: 0;           /* em */
+  --intro-gap: 0;             /* px between PORTFOLIO and the name */
+  --nav-size: 1.15;           /* rem */
+  --nav-track: .23;           /* em */
+  --nav-gap: 17;              /* px between links */
+  --nav-pad: 18;              /* px either side of a link's text */
   --nav-case: uppercase;
   --nav-justify: flex-start;
-  --nav-top: 20;              /* px */
+  --nav-top: 44;              /* px */
 }
 
 /* === RESET === */
@@ -160,7 +165,7 @@ section{padding:140px 48px}
 .hero-name{
   font-family:var(--hero-font);
   font-weight:var(--hero-weight);
-  font-size:clamp(1.5rem, calc(var(--hero-vw) * 1vw), calc(var(--hero-max) * 1rem));
+  font-size:min(clamp(1.5rem, calc(var(--hero-vw) * 1vw), calc(var(--hero-max) * 1rem)), calc((100vw - 2 * var(--edge)) / var(--hero-fit)));
   letter-spacing:calc(var(--hero-track) * 1em);
   line-height:var(--hero-leading);
   text-transform:var(--hero-case);
