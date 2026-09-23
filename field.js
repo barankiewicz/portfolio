@@ -271,19 +271,24 @@
     /* The brightness a cell is heading for: its section's pattern, under a
      * slow mask that lets whole regions swell up and die away, so a large
      * part of the field is always resting. */
-    function patternAt(sec, x, y){
+    function shapeAt(sec, x, y){
       var P = PARAMS, ya = y * f.aspect, t = f.time;
       var v = P.patterns[sec] === 'waves'
         ? wavesAt(f.waves[sec], P.scales[sec], x, ya, t, f.cols, f.rows * f.aspect)
         : cellsAt(f.seed ^ (sec * 0x9e3779b1), P.scales[sec], x, ya, t);
-      var mask = smoothstep(P.maskLow, P.maskHigh, noise3(f.seed ^ 0x3c6ef372, x * P.maskScale, ya * P.maskScale, t * P.maskSpeed));
-      v = Math.pow(Math.max(0, Math.min(1, (v - 0.5) * P.contrast + 0.5)), P.curve);
-      /* Dither scales each cell's brightness by a fixed amount, so
-       * neighbours at the same level show different glyphs. It is fixed
-       * per cell, so it adds texture, not flicker, and it acts before the
-       * slew, so it cannot make a cell jump; empty stays empty. */
+      return Math.pow(Math.max(0, Math.min(1, (v - 0.5) * P.contrast + 0.5)), P.curve);
+    }
+    /* Everything that multiplies the shape for one cell: the resting mask,
+     * the gain and the dither. It is smooth or fixed per cell, so a small
+     * tile's four quarters share their cell's. Dither scales each cell's
+     * brightness by a fixed amount, so neighbours at the same level show
+     * different glyphs; being fixed it adds texture, not flicker, and it
+     * acts before the slew, so it cannot make a cell jump. */
+    function weightAt(x, y){
+      var P = PARAMS, ya = y * f.aspect;
+      var mask = smoothstep(P.maskLow, P.maskHigh, noise3(f.seed ^ 0x3c6ef372, x * P.maskScale, ya * P.maskScale, f.time * P.maskSpeed));
       var dither = 1 + (hash3(f.seed, x, y, 11) - 0.5) * P.dither;
-      return Math.min(1, v * mask * P.gain * dither);
+      return mask * P.gain * dither;
     }
 
     function resize(c, r){
@@ -296,7 +301,7 @@
         }
       }
       f.cols = c; f.rows = r;
-      f.section = new Uint8Array(n);
+      f.section = new Uint8Array(n); f.shape = new Float32Array(n); f.weight = new Float32Array(n);
       f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph;
       buildTiles(f.tiles);
     }
@@ -319,7 +324,9 @@
       for (var y = 0; y < f.rows; y++){
         for (var x = 0; x < f.cols; x++){
           var i = y * f.cols + x, sec = f.section[i];
-          var target = patternAt(sec, x, y) * gain, v = f.level[i];
+          f.shape[i] = shapeAt(sec, x, y);
+          f.weight[i] = weightAt(x, y) * gain;
+          var target = Math.min(1, f.shape[i] * f.weight[i]), v = f.level[i];
           if (target > v) v = Math.min(target, v + rise);
           else v = Math.max(target, v - fall);
           var tone = toneOf(v);
@@ -333,7 +340,7 @@
       for (var ti = 0; ti < f.tiles.length; ti++){
         var t = f.tiles[ti];
         stepLargeCells(t, dt);
-        if (t.from === SMALL || t.to === SMALL) stepFine(t, rise, fall, gain);
+        if (t.from === SMALL || t.to === SMALL) stepFine(t, rise, fall);
         if (t.from !== t.to){
           t.mix = easeInOutSine(Math.min(1, (f.time - t.t0) / (P.sizeFade * P.pace)));
           if (f.time - t.t0 >= P.sizeFade * P.pace){ t.from = t.to; t.mix = 1; }
@@ -360,15 +367,17 @@
         t.fine.level[k] = f.level[i]; t.fine.tone[k] = f.tone[i]; t.fine.grey[k] = f.grey[i]; t.fine.glyph[k] = f.glyph[i];
       }
     }
-    function stepFine(t, rise, fall, gain){
+    function stepFine(t, rise, fall){
       if (!t.fine) seedFine(t);
       var q = t.fine;
       for (var k = 0; k < FINE * FINE; k++){
         var sx = k % FINE, sy = Math.floor(k / FINE);
         var x = t.x * TILE + (sx >> 1), y = t.y * TILE + (sy >> 1);
         if (x >= f.cols || y >= f.rows) continue;
-        var sec = f.section[y * f.cols + x];
-        var target = patternAt(sec, x + (sx & 1) * SMALL, y + (sy & 1) * SMALL) * gain, v = q.level[k];
+        var i = y * f.cols + x, sec = f.section[i];
+        /* The top-left quarter sits where the cell itself was sampled. */
+        var shape = (sx & 1) || (sy & 1) ? shapeAt(sec, x + (sx & 1) * SMALL, y + (sy & 1) * SMALL) : f.shape[i];
+        var target = Math.min(1, shape * f.weight[i]), v = q.level[k];
         if (target > v) v = Math.min(target, v + rise);
         else v = Math.max(target, v - fall);
         var tone = toneOf(v);
