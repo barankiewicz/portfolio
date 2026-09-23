@@ -352,7 +352,7 @@
     defaults: DEFAULTS,
     /* for the tuning page: a glitch now, not in a few seconds */
     glitch: function(){ if (ready && !reduce && !glitch){ startEpisode(clock); } },
-    state: function(){ return { clock: clock, frame: shownFrame, frames: frames.length, glitch: glitch && { at: glitch.at, bands: glitch.bands, shown: Array.from(shown) }, nextAt: nextAt, box: box && { cols: box.cols, rows: box.rows, gx: box.gx, gy: box.gy } }; }
+    state: function(){ return { ready: ready, clock: clock, frame: shownFrame, frames: frames.length, glitch: glitch && { at: glitch.at, bands: glitch.bands, shown: Array.from(shown) }, nextAt: nextAt, box: box && { cols: box.cols, rows: box.rows, gx: box.gx, gy: box.gy } }; }
   };
 
   Promise.all([decodeFrames(), loadCells()]).then(function(res){
