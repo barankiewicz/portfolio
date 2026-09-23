@@ -23,7 +23,7 @@
    * wheel over the nav, which sits above it, is handed on to the page. */
   document.getElementById('nav').addEventListener('wheel', function(e){
     var page = document.querySelector('.page.active');
-    if (page) page.scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY);
+    if (page) page.scrollBy(0, e.deltaY * (e.deltaMode === 2 ? page.clientHeight : e.deltaMode === 1 ? 16 : 1));
   }, { passive: true });
 
   /* === STRATA ===

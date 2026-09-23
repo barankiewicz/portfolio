@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-const { createField, PARAMS, DEFAULTS, GLYPHS, CHARS, TONES } = createRequire(import.meta.url)('../field.js');
+const { createField, sweepBands, bandAt, PARAMS, DEFAULTS, GLYPHS, CHARS, TONES } = createRequire(import.meta.url)('../field.js');
 
 const STEP = 1000 / DEFAULTS.fps; // the renderer steps the field at its fps
 const ASPECT = 16 / 12;
@@ -588,8 +588,6 @@ test('a box can carry its own right padding, for a hole still sweeping open', ()
   });
 });
 
-const { sweepBands, bandAt } = createRequire(import.meta.url)('../field.js');
-
 test('sweep bands: every band opens inside the timeline, fully, and the same way each time', () => {
   const bands = sweepBands(7, 24, { bandShuffle: 0.7, bandLength: 0.35, bandJitter: 0.5 });
   assert.equal(bands.length, 24);
@@ -607,4 +605,22 @@ test('sweep bands: no shuffle is a top-down cascade, full shuffle is not', () =>
   let inversions = 0;
   for (let i = 1; i < glitch.length; i++) if (glitch[i][0] < glitch[i - 1][0]) inversions++;
   assert.ok(inversions >= 4, `only ${inversions} bands out of order`);
+});
+
+test('a soft cell steps down exactly one tone per tick, so six ticks always empty it', () => {
+  withParams({ gain: 4, bigAmount: 0, midAmount: 0, smallAmount: 0, ...holeParams(0, 0, 0) }, () => {
+    const field = createField(21, 80, 40, ASPECT);
+    run(field, 6 * SECOND);
+    let full = 0;
+    for (let y = 5; y < 35; y++) for (let x = 5; x < 75; x++) if (field.tone[y * 80 + x] === TONES) full++;
+    assert.ok(full > 50, `only ${full} cells at full tone to test with`);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 75, y1: 35, soft: true }]);
+    let prev = Uint8Array.from(field.tone);
+    for (let k = 0; k < TONES; k++) {
+      field.step(STEP);
+      for (let i = 0; i < field.tone.length; i++) if (field.soft[i] && prev[i]) assert.equal(field.tone[i], prev[i] - 1, `soft cell ${i} went ${prev[i]} to ${field.tone[i]}`);
+      prev = Uint8Array.from(field.tone);
+    }
+    for (let i = 0; i < field.tone.length; i++) if (field.soft[i]) assert.equal(field.tone[i], 0, `soft cell ${i} still lit after ${TONES} ticks`);
+  });
 });

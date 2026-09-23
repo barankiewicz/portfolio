@@ -223,6 +223,12 @@
       if (v < PARAMS.threshold) return 0;
       return Math.min(TONES, 1 + Math.floor((v - PARAMS.threshold) / toneStep));
     }
+    /* A soft cell drops exactly one tone per tick: to just under the
+     * floor of the tone it shows. The capped slew would take a seventh
+     * tick from full, and the sweep's --lag counts on six. */
+    function softStep(v, tone){
+      return tone ? PARAMS.threshold + (tone - 1) * toneStep - 1e-6 : Math.min(v, PARAMS.threshold - 1e-6);
+    }
     function greyOf(tone){
       return tone < PARAMS.greyMid ? 0 : tone < PARAMS.greyBright ? 1 : 2;
     }
@@ -409,8 +415,9 @@
           f.fill[i] = want > f.fill[i] ? Math.min(want, f.fill[i] + fillStep) : Math.max(want, f.fill[i] - fillStep);
           f.shape[i] = shapeAt(sec, x, y);
           f.weight[i] = weightAt(x, y) * gain;
-          var target = f.soft[i] ? 0 : Math.min(1, f.shape[i] * f.weight[i]), v = f.level[i];
+          var target = Math.min(1, f.shape[i] * f.weight[i]), v = f.level[i];
           if (f.cut[i]) v = 0;
+          else if (f.soft[i]) v = softStep(v, f.tone[i]);
           else if (target > v) v = Math.min(target, v + rise);
           else v = Math.max(target, v - fall);
           var tone = toneOf(v);
@@ -461,8 +468,9 @@
         var i = y * f.cols + x, sec = f.section[i];
         /* The top-left quarter sits where the cell itself was sampled. */
         var shape = (sx & 1) || (sy & 1) ? shapeAt(sec, x + (sx & 1) * SMALL, y + (sy & 1) * SMALL) : f.shape[i];
-        var target = f.soft[i] ? 0 : Math.min(1, shape * f.weight[i]), v = q.level[k];
+        var target = Math.min(1, shape * f.weight[i]), v = q.level[k];
         if (f.cut[i]) v = 0;
+        else if (f.soft[i]) v = softStep(v, q.tone[k]);
         else if (target > v) v = Math.min(target, v + rise);
         else v = Math.max(target, v - fall);
         var tone = toneOf(v);
@@ -599,9 +607,11 @@
    * is written here from the same bands, one layer per band sized by the
    * same --txt expression, so text only ever shows where its band's hole
    * is hard. */
+  /* syncBands deals an element its bands once per size and writes its
+   * text mask from them; measure reuses the bands for the holes. */
   var sweeps = new WeakMap(), sweepSeq = 0;
   function num(v){ return +v.toFixed(4); }
-  function bandsFor(el, e){
+  function syncBands(el, e){
     var P = PARAMS, st = sweeps.get(el);
     if (!st) sweeps.set(el, st = { seed: 0x2545f491 ^ (++sweepSeq * 0x9e3779b1), key: '' });
     var key = Math.round(e.width) + 'x' + Math.round(e.height) + ',' + CH + ',' + [P.bandShuffle, P.bandLength, P.bandJitter].join();
@@ -665,7 +675,7 @@
         if (isNaN(cut)) cut = 1;
         if (isNaN(txt)) txt = 1;
         e = mode === 'box' ? rects[0] : el.getBoundingClientRect();
-        sweep = bandsFor(el, e);
+        sweep = syncBands(el, e);
       }
       for (var k = 0; k < rects.length; k++){
         var r = rects[k], x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom;

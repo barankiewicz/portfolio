@@ -58,7 +58,6 @@
   --lag: .7s;                 /* text behind the erosion; at least the field's 6 ticks to empty */
   --stagger: 70ms;            /* between blocks opening together */
   --shut: .32s;               /* text wiping out on close */
-  --sweep-ease: cubic-bezier(.65,0,.35,1);
 }
 
 /* === RESET === */
