@@ -326,7 +326,8 @@
      * A box marked soft is a hole on its way: nothing is emptied on the
      * call, its cells fall to empty under the slew and its large glyphs
      * crossfade out, so an opening hole erodes the field instead of
-     * punching it. A hard box wins where the two overlap. */
+     * punching it. A hard box wins where the two overlap. A box may
+     * carry its own padR, which a hole sweeping open grows from zero. */
     function setCutouts(list){
       cutouts = list || [];
       cutHoles();
@@ -348,7 +349,7 @@
       for (var k = 0; k < cutouts.length; k++){
         var r = cutouts[k];
         mask = r.soft ? f.soft : cut;
-        var x0 = Math.floor(r.x0 - P.cutPadL), x1 = Math.ceil(r.x1 + P.cutPadR);
+        var x0 = Math.floor(r.x0 - P.cutPadL), x1 = Math.ceil(r.x1 + (r.padR != null ? r.padR : P.cutPadR));
         var y0 = Math.floor(r.y0 - P.cutPadT), y1 = Math.ceil(r.y1 + P.cutPadB);
         if (x1 <= 0 || y1 <= 0 || x0 >= cols || y0 >= rows) continue;
         fill(x0, y0, x1, y1);
@@ -557,7 +558,19 @@
    * each line of the element's text, "block" one hole round all of it,
    * "box" round its border box and its children's (the nav strip, which
    * keeps covering the email when that is nudged out of line).
-   * Measured in viewport px, handed to the model in cells. */
+   * Measured in viewport px, handed to the model in cells.
+   *
+   * Inside an element marked data-cutout-clip (a scrolling page) holes
+   * are cut to that element's box, so a block scrolled under its edge
+   * takes only the visible part of its hole.
+   *
+   * An element also marked data-sweep opens and closes along its width,
+   * driven by two numbers in its CSS, --cut and --txt, from 0 to 1. A
+   * front travels from the element's left edge to its right edge plus
+   * the hole's right padding: behind the --cut front the hole is soft
+   * and the field erodes out of it; behind the --txt front it is hard.
+   * The page CSS masks the text to the --txt front less --cut-pad, which
+   * is set here, so text never shows where the hole is not yet hard. */
   var range = document.createRange(), watched = new WeakSet();
   var resizeWatch = window.ResizeObserver ? new ResizeObserver(function(){ sync(); }) : null;
   function boxOf(el){
@@ -569,16 +582,36 @@
     return { left: x0, top: y0, right: x1, bottom: y1, width: x1 - x0, height: y1 - y0 };
   }
   function measure(){
-    var els = document.querySelectorAll('[data-cutout]'), out = [];
+    var els = document.querySelectorAll('[data-cutout]'), out = [], pad = PARAMS.cutPadR * CW;
     for (var i = 0; i < els.length; i++){
       var el = els[i], rects;
       if (resizeWatch && !watched.has(el)){ resizeWatch.observe(el); watched.add(el); }
       var mode = el.getAttribute('data-cutout');
       if (mode === 'box') rects = [boxOf(el)];
       else { range.selectNodeContents(el); rects = mode === 'block' ? [range.getBoundingClientRect()] : range.getClientRects(); }
+      if (!rects.length || !(rects[0].width > 0)) continue;
+      var clip = el.closest('[data-cutout-clip]'), c = clip && clip.getBoundingClientRect();
+      var sweep = el.hasAttribute('data-sweep'), fronts = null;
+      if (sweep){
+        var st = getComputedStyle(el), cut = parseFloat(st.getPropertyValue('--cut')), txt = parseFloat(st.getPropertyValue('--txt'));
+        var e = mode === 'box' ? rects[0] : el.getBoundingClientRect(), span = e.width + pad;
+        if (isNaN(cut)) cut = 1;
+        if (isNaN(txt)) txt = 1;
+        fronts = [[e.left + span * txt, false]];
+        if (cut > txt) fronts.push([e.left + span * cut, true]);
+      }
       for (var k = 0; k < rects.length; k++){
-        var r = rects[k];
-        if (r.width > 0 && r.height > 0) out.push({ x0: r.left / CW, y0: r.top / CH, x1: r.right / CW, y1: r.bottom / CH });
+        var r = rects[k], x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom;
+        if (c){ x0 = Math.max(x0, c.left); y0 = Math.max(y0, c.top); x1 = Math.min(x1, c.right); y1 = Math.min(y1, c.bottom); }
+        if (!(x1 > x0 && y1 > y0)) continue;
+        if (!fronts){ out.push({ x0: x0 / CW, y0: y0 / CH, x1: x1 / CW, y1: y1 / CH }); continue; }
+        /* The hole's right edge, padding included, stops at the front. */
+        for (var f = 0; f < fronts.length; f++){
+          var edge = Math.min(x1 + pad, fronts[f][0]);
+          if (edge <= x0) continue;
+          var right = Math.min(x1, edge);
+          out.push({ x0: x0 / CW, y0: y0 / CH, x1: right / CW, y1: y1 / CH, padR: (edge - right) / CW, soft: fronts[f][1] });
+        }
       }
     }
     return out;
@@ -591,6 +624,7 @@
     var boxes = measure(), P = PARAMS;
     var key = JSON.stringify(boxes) + [P.cutPadL, P.cutPadR, P.cutPadT, P.cutPadB, P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB].join();
     if (key === cutKey) return;
+    document.documentElement.style.setProperty('--cut-pad', P.cutPadR * CW + 'px');
     cutKey = key;
     field.setCutouts(boxes);
     if (reduce) settle();

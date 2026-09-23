@@ -31,64 +31,59 @@
 <header>
   <section class="hero" id="home">
     <div class="hero-content">
-      <p class="hero-intro" data-cutout="text">PORTFOLIO</p>
-      <h1 class="hero-name" data-cutout="text">Alicja&nbsp;Barankiewicz</h1>
+      <p class="hero-intro" data-cutout="text" data-sweep>PORTFOLIO</p>
+      <h1 class="hero-name" data-cutout="text" data-sweep>Alicja&nbsp;Barankiewicz</h1>
     </div>
   </section>
 </header>
 
 <main id="main-content">
-  <section id="cv" class="page">
-    <div class="container">
-      <div class="sect-header">
-        <h2 class="sect-title sect-title--lg">Curriculum Vitae</h2>
-      </div>
-      <div class="cv-block cv-intro">
+  <section id="cv" class="page" data-cutout-clip>
+    <div class="strata">
+      <h2 class="page-title" data-cutout="text" data-sweep>Curriculum Vitae</h2>
+      <div class="cv-intro stratum at-1" data-cutout="box" data-sweep>
         <p>Solution-driven professional with 7 years of Data Engineering and BI Development experience. Passionate about working with data and finding order in its apparent chaos. Enthusiastic about building custom solutions that drive business success. Loves coding and solving challenging problems. A fast learner, highly motivated, and a true team player.</p>
         <a href="Alicja-Barankiewicz_CV_data_engineer.pdf" download class="cv-download" aria-label="Download CV as PDF">Download CV (PDF)</a>
       </div>
 
-      <div class="sect-header sect-header--sm">
-        <h3 class="sect-title">Experience</h3>
-      </div>
-
-      <div class="tl-grid cv-block">
-        <div class="tl-item">
+      <h3 class="strata-head at-0" data-cutout="text" data-sweep>Experience</h3>
+      <div class="tl-list">
+        <div class="tl-item stratum at-2" data-cutout="box" data-sweep>
           <p class="tl-year">2019 — 2026</p>
           <h4>Data Engineer / BI Developer</h4>
           <p class="tl-company">CRESTT · Warsaw</p>
           <p>End-to-end technical coverage of Process Mining and Data Engineering projects. Responsible for building data pipelines and architecture, data warehousing, complex data models, visualization via dashboards, and automation.</p>
         </div>
 
-        <div class="tl-item">
+        <div class="tl-item stratum at-3" data-cutout="box" data-sweep>
           <p class="tl-year">2024 — 2025</p>
           <h4>Global Casual Dining Operator</h4>
           <p class="tl-company">Client Project</p>
           <p>Developed robust ETL pipelines using Airflow DAGs. Implemented row versioning via SCD type 2. Built a fraud detection data model across SAP HANA FI/CO, MM, and HR modules.</p>
         </div>
 
-        <div class="tl-item">
+        <div class="tl-item stratum at-2" data-cutout="box" data-sweep>
           <p class="tl-year">2024</p>
           <h4>German Food Company</h4>
           <p class="tl-company">Client Project</p>
           <p>Implemented a Process Mining solution for warehouse pallet movements in SAP EWM. Integrated primary SAP EWM source with custom enrichment sources. Conducted end-user training sessions.</p>
         </div>
 
-        <div class="tl-item">
+        <div class="tl-item stratum at-1" data-cutout="box" data-sweep>
           <p class="tl-year">2022 — 2023</p>
           <h4>International Logistics Operator</h4>
           <p class="tl-company">Client Project</p>
           <p>Developed a custom ELT pipeline via SFTP and Celonis Data Push API. Designed dashboards for worker productivity, picking errors, and on-time delivery. Azure migration cut Celonis licensing costs by over 80%.</p>
         </div>
 
-        <div class="tl-item">
+        <div class="tl-item stratum at-2" data-cutout="box" data-sweep>
           <p class="tl-year">2019 — 2022</p>
           <h4>Major Polish Telco Company</h4>
           <p class="tl-company">Client Project</p>
           <p>Integrated customer-specific systems with SAP HANA and SAP EWM sources. Built analytical dashboards identifying over 3M PLN in fraudulent activities within the first month. Administered an on-premise Celonis instance.</p>
         </div>
 
-        <div class="tl-item">
+        <div class="tl-item stratum at-3" data-cutout="box" data-sweep>
           <p class="tl-year">2019 — 2023</p>
           <h4>Computer Science &amp; Info Systems</h4>
           <p class="tl-company">Warsaw University of Technology</p>
@@ -96,12 +91,9 @@
         </div>
       </div>
 
-      <div class="sect-header sect-header--sm">
-        <h3 class="sect-title">Skills</h3>
-      </div>
-
-      <div class="skills-grid cv-block">
-        <div class="skills-cat">
+      <h3 class="strata-head at-1" data-cutout="text" data-sweep>Skills</h3>
+      <div class="skills-list">
+        <div class="skills-cat stratum at-2" data-cutout="box" data-sweep>
           <h4>Core</h4>
           <div class="skill-blocks">
             <span class="skill-block solid">Data Modelling</span>
@@ -113,7 +105,7 @@
             <span class="skill-block">Server Admin</span>
           </div>
         </div>
-        <div class="skills-cat">
+        <div class="skills-cat stratum at-1" data-cutout="box" data-sweep>
           <h4>Tools &amp; Platforms</h4>
           <div class="skill-blocks">
             <span class="skill-block">Celonis</span>
@@ -128,14 +120,14 @@
             <span class="skill-block">Git</span>
           </div>
         </div>
-        <div class="skills-cat">
+        <div class="skills-cat stratum at-0" data-cutout="box" data-sweep>
           <h4>Certifications</h4>
           <div class="skill-blocks">
             <span class="skill-block solid">Celonis Qualified Expert</span>
             <span class="skill-block solid">Snowflake SnowPro Core</span>
           </div>
         </div>
-        <div class="skills-cat">
+        <div class="skills-cat stratum at-1" data-cutout="box" data-sweep>
           <h4>Languages</h4>
           <div class="skill-blocks">
             <span class="skill-block solid">Polish — Native</span>
@@ -146,15 +138,13 @@
     </div>
   </section>
 
-  <section id="projects" class="page">
-    <div class="container">
-      <div class="sect-header">
-        <h2 class="sect-title">Personal Projects</h2>
-        <p class="sect-desc">What I'm tinkering on</p>
-      </div>
+  <section id="projects" class="page" data-cutout-clip>
+    <div class="strata">
+      <h2 class="page-title" data-cutout="text" data-sweep>Personal Projects</h2>
+      <p class="page-sub at-1" data-cutout="text" data-sweep>What I'm tinkering on</p>
 
-      <div class="proj-grid cv-block">
-        <div class="proj-card">
+      <article class="proj">
+        <div class="proj-plate stratum at-0" data-cutout="box" data-sweep>
           <a class="proj-shot-link" href="https://nazwozbior.pl" target="_blank" rel="noopener" aria-label="Open nazwozbior.pl in a new tab">
             <div class="proj-img-wrap">
               <div class="proj-browser-bar" aria-hidden="true">
@@ -168,6 +158,8 @@
               <span class="proj-visit">View Live &#8599;</span>
             </div>
           </a>
+        </div>
+        <div class="proj-head stratum at-1" data-cutout="box" data-sweep>
           <p class="proj-client">Web app</p>
           <div class="proj-title-row">
             <h4><a href="https://nazwozbior.pl" target="_blank" rel="noopener">nazwozbior.pl</a></h4>
@@ -177,6 +169,8 @@
           </div>
           <p class="proj-tagline">Find the name that's really yours - searchable across every name in Polish PESEL registry - instantly!</p>
           <p>A site dedicated for trans people who are ditching their deadnames. It gathers names from Polish PESEL registry to get a list of names that are 'officially used' in Polish administrative system and enriches them with info about the name's origin and meaning wherever possible. You can browse the names and filter/sort them with sub-second speed on most queries. No db - static site serving jsons with datasets.</p>
+        </div>
+        <div class="proj-notes stratum at-2" data-cutout="box" data-sweep>
           <p class="proj-subhead">Tech Stack</p>
           <div class="proj-tags">
             <span class="proj-tag">Python</span>
@@ -193,8 +187,10 @@
           </div>
           <p class="proj-result">The repo as well as the site is in Polish because of the nature of the site. Feel free to contact me if you need other languages to be implemented!</p>
         </div>
+      </article>
 
-        <div class="proj-card">
+      <article class="proj">
+        <div class="proj-plate stratum at-2" data-cutout="box" data-sweep>
           <a class="proj-shot-link" href="https://zabka-stats.barankiewicz.dev" target="_blank" rel="noopener" aria-label="Open zabka-stats in a new tab">
             <div class="proj-img-wrap">
               <div class="proj-browser-bar" aria-hidden="true">
@@ -208,6 +204,8 @@
               <span class="proj-visit">View Live &#8599;</span>
             </div>
           </a>
+        </div>
+        <div class="proj-head stratum at-1" data-cutout="box" data-sweep>
           <p class="proj-client">Data &amp; GIS Analytics</p>
           <div class="proj-title-row">
             <h4><a href="https://zabka-stats.barankiewicz.dev" target="_blank" rel="noopener">zabka-stats</a></h4>
@@ -217,6 +215,8 @@
           </div>
           <p class="proj-tagline">The most Żabka-obsessed map of Poland you'll ever scroll through.</p>
           <p>An interactive, high-performance spatial analytics platform for tracking the density, growth, and socio-economic correlations of the Żabka store network and InPost parcel lockers across Poland.</p>
+        </div>
+        <div class="proj-notes stratum at-0" data-cutout="box" data-sweep>
           <p class="proj-subhead">Tech Stack</p>
           <div class="proj-tags">
             <span class="proj-tag">Frontend: Vite, Vanilla HTML5, Chart.js, MapLibreGL JS, Echarts, D3, Observable Plot</span>
@@ -236,8 +236,10 @@
           </div>
           <p class="proj-result">The repo as well as the site is in Polish because of the nature of the site. Feel free to contact me if you need other languages to be implemented!</p>
         </div>
+      </article>
 
-        <div class="proj-card">
+      <article class="proj">
+        <div class="proj-plate stratum at-0" data-cutout="box" data-sweep>
           <a class="proj-shot-link" href="https://barankiewicz.dev" target="_blank" rel="noopener" aria-label="Open barankiewicz.dev in a new tab">
             <div class="proj-img-wrap">
               <div class="proj-browser-bar" aria-hidden="true">
@@ -251,6 +253,8 @@
               <span class="proj-visit">View Live &#8599;</span>
             </div>
           </a>
+        </div>
+        <div class="proj-head stratum at-1" data-cutout="box" data-sweep>
           <p class="proj-client">Creative Frontend Design</p>
           <div class="proj-title-row">
             <h4><a href="https://barankiewicz.dev" target="_blank" rel="noopener">barankiewicz.dev</a></h4>
@@ -260,6 +264,8 @@
           </div>
           <p class="proj-tagline">This very site</p>
           <p>This very portfolio, a very simple site that I tried to make somehow visually pleasing.</p>
+        </div>
+        <div class="proj-notes stratum at-2" data-cutout="box" data-sweep>
           <p class="proj-subhead">Tech Stack</p>
           <div class="proj-tags">
             <span class="proj-tag">Vanilla HTML5</span>
@@ -272,8 +278,10 @@
             <p>Working with CSS 3D transforms and canvas-based noise.</p>
           </div>
         </div>
+      </article>
 
-        <div class="proj-card">
+      <article class="proj">
+        <div class="proj-plate stratum at-2" data-cutout="box" data-sweep>
           <a class="proj-shot-link" href="https://github.com/barankiewicz/soundlog" target="_blank" rel="noopener" aria-label="Open SoundLog repository in a new tab">
             <div class="proj-img-wrap">
               <div class="proj-browser-bar" aria-hidden="true">
@@ -287,6 +295,8 @@
               <span class="proj-visit">View Repo &#8599;</span>
             </div>
           </a>
+        </div>
+        <div class="proj-head stratum at-1" data-cutout="box" data-sweep>
           <p class="proj-client">Browser Extension / Last.fm API</p>
           <div class="proj-title-row">
             <h4><a href="https://github.com/barankiewicz/soundlog" target="_blank" rel="noopener">SoundLog</a></h4>
@@ -296,6 +306,8 @@
           </div>
           <p class="proj-tagline">RYM review reminder based on your Last.fm history</p>
           <p>A browser extension that bridges your Last.fm scrobble history with RateYourMusic reviews. It watches your listening activity, groups plays into album sessions, and builds a local review queue you can work through at your own pace.</p>
+        </div>
+        <div class="proj-notes stratum at-0" data-cutout="box" data-sweep>
           <p class="proj-subhead">Tech Stack</p>
           <div class="proj-tags">
             <span class="proj-tag">RxJS</span>
@@ -317,104 +329,95 @@
           </div>
           <p class="proj-result">Still WIP! Not yet finished!!!</p>
         </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="work" class="page" data-cutout-clip>
+    <div class="strata">
+      <h2 class="page-title" data-cutout="text" data-sweep>Selected Client Work</h2>
+      <p class="page-sub at-1" data-cutout="text" data-sweep>End-to-end data engineering across process mining, warehousing, and analytics.</p>
+
+      <div class="work-card stratum at-1" data-cutout="box" data-sweep>
+        <p class="proj-client">Global Casual Dining Operator</p>
+        <h4>Fraud Detection &amp; Data Warehouse</h4>
+        <p>Built end-to-end analytics infrastructure for a multi-brand restaurant group. Developed Airflow-orchestrated ETL pipelines with SCD type 2 row versioning. Designed a fraud detection data model spanning finance, procurement, and HR modules in SAP HANA.</p>
+        <div class="proj-tags">
+          <span class="proj-tag">Airflow</span>
+          <span class="proj-tag">SAP HANA</span>
+          <span class="proj-tag">SCD Type 2</span>
+          <span class="proj-tag">Python</span>
+        </div>
+        <p class="proj-result">Delivered fraud model covering FI/CO, MM, and HR modules</p>
+      </div>
+
+      <div class="work-card stratum at-2" data-cutout="box" data-sweep>
+                  <p class="proj-client">German Food Company</p>
+        <h4>Warehouse Process Mining</h4>
+        <p>Implemented a Process Mining solution for pallet movement analysis in SAP EWM. Integrated primary SAP sources with custom enrichment data pipelines. Conducted hands-on training sessions for warehouse analysts and management teams.</p>
+        <div class="proj-tags">
+          <span class="proj-tag">Celonis</span>
+          <span class="proj-tag">SAP EWM</span>
+          <span class="proj-tag">Process Mining</span>
+          <span class="proj-tag">Data Integration</span>
+        </div>
+        <p class="proj-result">Full warehouse visibility across pallet lifecycle</p>
+      </div>
+
+      <div class="work-card stratum at-1" data-cutout="box" data-sweep>
+        <p class="proj-client">International Logistics Operator</p>
+        <h4>ELT Pipeline &amp; Azure Migration</h4>
+        <p>Designed a custom ELT pipeline using SFTP and the Celonis Data Push API. Built operational dashboards for worker productivity, picking error rates, and on-time delivery metrics. Led Azure cloud migration reducing licensing costs by over 80%.</p>
+        <div class="proj-tags">
+          <span class="proj-tag">Azure</span>
+          <span class="proj-tag">Celonis Data Push</span>
+          <span class="proj-tag">SFTP</span>
+          <span class="proj-tag">SQL</span>
+        </div>
+        <p class="proj-result">Cut licensing costs by 80% and improved data freshness</p>
+      </div>
+
+      <div class="work-card stratum at-0" data-cutout="box" data-sweep>
+        <p class="proj-client">Major Polish Telco Company</p>
+        <h4>Fraud Analytics &amp; Celonis Administration</h4>
+        <p>Integrated customer-facing and back-office systems with SAP HANA and SAP EWM data sources. Built analytical dashboards exposing procurement irregularities and payment discrepancies. Administered on-premise Celonis instance serving 200+ users.</p>
+        <div class="proj-tags">
+          <span class="proj-tag">SAP HANA</span>
+          <span class="proj-tag">SAP EWM</span>
+          <span class="proj-tag">Celonis</span>
+          <span class="proj-tag">Dashboard Design</span>
+        </div>
+        <p class="proj-result">Identified 3M+ PLN in fraudulent activity in first month</p>
       </div>
     </div>
   </section>
 
-  <section id="work" class="page">
-    <div class="container">
-      <div class="sect-header">
-        <h2 class="sect-title">Selected Client Work</h2>
-        <p class="sect-desc">End-to-end data engineering across process mining, warehousing, and analytics.</p>
-      </div>
-
-      <div class="proj-grid cv-block">
-        <div class="proj-card">
-          <p class="proj-client">Global Casual Dining Operator</p>
-          <h4>Fraud Detection &amp; Data Warehouse</h4>
-          <p>Built end-to-end analytics infrastructure for a multi-brand restaurant group. Developed Airflow-orchestrated ETL pipelines with SCD type 2 row versioning. Designed a fraud detection data model spanning finance, procurement, and HR modules in SAP HANA.</p>
-          <div class="proj-tags">
-            <span class="proj-tag">Airflow</span>
-            <span class="proj-tag">SAP HANA</span>
-            <span class="proj-tag">SCD Type 2</span>
-            <span class="proj-tag">Python</span>
+  <section id="contact" class="page" data-cutout-clip>
+    <div class="strata">
+      <h2 class="page-title" data-cutout="text" data-sweep>Let's<br />connect</h2>
+      <p class="contact-intro stratum at-1" data-cutout="box" data-sweep>Looking for a data engineer who thrives on turning chaos into clarity? Reach out to discuss how I can help your team build robust data infrastructure, uncover actionable insights, and drive measurable business outcomes.</p>
+      <div class="channels">
+        <a href="mailto:barankiewicz@pm.me" class="channel-item stratum at-2" data-cutout="box" data-sweep>
+          <span class="channel-num">01</span>
+          <div>
+            <span class="clabel">Email</span><br />
+            barankiewicz@pm.me
           </div>
-          <p class="proj-result">Delivered fraud model covering FI/CO, MM, and HR modules</p>
-        </div>
-
-        <div class="proj-card">
-          <div class="proj-img-wrap" style="display:none;"></div>
-          <p class="proj-client">German Food Company</p>
-          <h4>Warehouse Process Mining</h4>
-          <p>Implemented a Process Mining solution for pallet movement analysis in SAP EWM. Integrated primary SAP sources with custom enrichment data pipelines. Conducted hands-on training sessions for warehouse analysts and management teams.</p>
-          <div class="proj-tags">
-            <span class="proj-tag">Celonis</span>
-            <span class="proj-tag">SAP EWM</span>
-            <span class="proj-tag">Process Mining</span>
-            <span class="proj-tag">Data Integration</span>
+        </a>
+        <a href="tel:+48797229728" class="channel-item stratum at-3" data-cutout="box" data-sweep aria-label="Phone: plus four eight seven nine seven two two nine seven two eight">
+          <span class="channel-num">02</span>
+          <div>
+            <span class="clabel">Phone</span><br />
+            +48 797 229 728
           </div>
-          <p class="proj-result">Full warehouse visibility across pallet lifecycle</p>
-        </div>
-
-        <div class="proj-card">
-          <p class="proj-client">International Logistics Operator</p>
-          <h4>ELT Pipeline &amp; Azure Migration</h4>
-          <p>Designed a custom ELT pipeline using SFTP and the Celonis Data Push API. Built operational dashboards for worker productivity, picking error rates, and on-time delivery metrics. Led Azure cloud migration reducing licensing costs by over 80%.</p>
-          <div class="proj-tags">
-            <span class="proj-tag">Azure</span>
-            <span class="proj-tag">Celonis Data Push</span>
-            <span class="proj-tag">SFTP</span>
-            <span class="proj-tag">SQL</span>
+        </a>
+        <a href="https://linkedin.com/in/alicjabarankiewicz" class="channel-item stratum at-2" data-cutout="box" data-sweep>
+          <span class="channel-num">03</span>
+          <div>
+            <span class="clabel">LinkedIn</span><br />
+            linkedin.com/in/alicjabarankiewicz
           </div>
-          <p class="proj-result">Cut licensing costs by 80% and improved data freshness</p>
-        </div>
-
-        <div class="proj-card">
-          <p class="proj-client">Major Polish Telco Company</p>
-          <h4>Fraud Analytics &amp; Celonis Administration</h4>
-          <p>Integrated customer-facing and back-office systems with SAP HANA and SAP EWM data sources. Built analytical dashboards exposing procurement irregularities and payment discrepancies. Administered on-premise Celonis instance serving 200+ users.</p>
-          <div class="proj-tags">
-            <span class="proj-tag">SAP HANA</span>
-            <span class="proj-tag">SAP EWM</span>
-            <span class="proj-tag">Celonis</span>
-            <span class="proj-tag">Dashboard Design</span>
-          </div>
-          <p class="proj-result">Identified 3M+ PLN in fraudulent activity in first month</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="contact" class="page">
-    <div class="container">
-      <div class="contact-split">
-        <div>
-          <h2>Let's<br />connect</h2>
-          <p class="contact-intro">Looking for a data engineer who thrives on turning chaos into clarity? Reach out to discuss how I can help your team build robust data infrastructure, uncover actionable insights, and drive measurable business outcomes.</p>
-        </div>
-        <div class="channels cv-block">
-          <a href="mailto:barankiewicz@pm.me" class="channel-item">
-            <span class="channel-num">01</span>
-            <div>
-              <span class="clabel">Email</span><br />
-              barankiewicz@pm.me
-            </div>
-          </a>
-          <a href="tel:+48797229728" class="channel-item" aria-label="Phone: plus four eight seven nine seven two two nine seven two eight">
-            <span class="channel-num">02</span>
-            <div>
-              <span class="clabel">Phone</span><br />
-              +48 797 229 728
-            </div>
-          </a>
-          <a href="https://linkedin.com/in/alicjabarankiewicz" class="channel-item">
-            <span class="channel-num">03</span>
-            <div>
-              <span class="clabel">LinkedIn</span><br />
-              linkedin.com/in/alicjabarankiewicz
-            </div>
-          </a>
-        </div>
+        </a>
       </div>
     </div>
   </section>

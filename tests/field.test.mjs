@@ -577,3 +577,13 @@ test('a hard cutout wins where it overlaps a soft one, and both get the fill', (
     assert.equal(field.fill[soft], 1);
   });
 });
+
+test('a box can carry its own right padding, for a hole still sweeping open', () => {
+  withParams({ ...holeParams(0, 0, 0), cutPadR: 8 }, () => {
+    const field = createField(3, 40, 10, ASPECT);
+    field.setCutouts([{ x0: 2, y0: 2, x1: 5, y1: 3, padR: 1.5 }]);
+    assert.deepEqual(cutCells(field), [[2, 2], [3, 2], [4, 2], [5, 2], [6, 2]]);
+    field.setCutouts([{ x0: 2, y0: 2, x1: 5, y1: 3 }]);
+    assert.equal(cutCells(field).length, 11, 'without padR the param applies');
+  });
+});

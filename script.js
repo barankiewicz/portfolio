@@ -1,70 +1,113 @@
 (function(){
   'use strict';
 
-  var nav = document.getElementById('nav');
+  var root = document.documentElement;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hero = document.querySelector('.hero');
+  var navLeft = document.querySelector('.nav-left');
+  var firstLink = document.querySelector('.nav-links a');
 
-  /* === SCROLLED NAV === */
-  function updateNavScrolled(s){
-    if (nav) nav.classList.toggle('scrolled', s > 60);
+  /* === PAGE BOX ===
+   * A page scrolls in a box that starts under the nav, and its text
+   * starts where the nav's does, wherever the nav wrapped or was nudged
+   * to. */
+  function placePages(){
+    root.style.setProperty('--page-top', Math.ceil(navLeft.getBoundingClientRect().bottom + 8) + 'px');
+    root.style.setProperty('--rail-x', Math.round(firstLink.getBoundingClientRect().left) + 'px');
   }
-  function bindActiveScroll(){
-    var ap = document.querySelector('.page.active');
-    if (ap){
-      ap.addEventListener('scroll', function(){ updateNavScrolled(ap.scrollTop); });
+  if (window.ResizeObserver) new ResizeObserver(placePages).observe(navLeft);
+  window.addEventListener('resize', placePages);
+  placePages();
+
+  /* === STRATA ===
+   * Every [data-sweep] element opens with the sweep in style.css when it
+   * gets .open. A route's blocks open as they come into view, so the
+   * first screen opens as the route arrives and the rest reveal on
+   * scroll with the same motion. --i staggers blocks that open together. */
+  function strata(scope){ return scope.querySelectorAll('[data-sweep]'); }
+  var shown = null, batch = 0, batchTimer = 0;
+  function open(el){
+    el.style.setProperty('--i', batch++);
+    clearTimeout(batchTimer);
+    batchTimer = setTimeout(function(){ batch = 0; }, 120);
+    el.classList.add('open');
+  }
+  var reveal = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (!e.isIntersecting || !shown || !shown.contains(e.target)) return;
+      reveal.unobserve(e.target);
+      open(e.target);
+    });
+  }, { threshold: 0.12 });
+
+  function show(scope){
+    shown = scope;
+    var isHero = scope === hero;
+    document.body.classList.toggle('page-open', !isHero);
+    var pages = document.querySelectorAll('.page');
+    for (var i = 0; i < pages.length; i++) pages[i].classList.toggle('active', pages[i] === scope);
+    scope.scrollTop = 0;
+    var els = strata(scope);
+    for (var k = 0; k < els.length; k++) reveal.observe(els[k]);
+  }
+
+  /* Closing waits for the open blocks on screen, last first, then the
+   * route swaps. A route change during a close cuts it short. */
+  var closing = 0;
+  function closeAndShow(from, to){
+    clearTimeout(closing);
+    var els = strata(from), vis = [], h = window.innerHeight;
+    for (var i = 0; i < els.length; i++){
+      reveal.unobserve(els[i]);
+      if (!els[i].classList.contains('open')) continue;
+      var r = els[i].getBoundingClientRect();
+      if (r.bottom > 0 && r.top < h && r.height > 0) vis.push(els[i]);
+      else els[i].classList.remove('open');
     }
+    for (var j = 0; j < vis.length; j++){
+      vis[j].style.setProperty('--i', vis.length - 1 - j);
+      vis[j].classList.remove('open');
+    }
+    shown = null;
+    var shut = parseFloat(getComputedStyle(root).getPropertyValue('--shut')) * 1000 || 320;
+    closing = setTimeout(function(){ show(to); }, vis.length ? shut * 1.8 + (vis.length - 1) * 30 : 0);
   }
-  window.addEventListener('scroll', function(){ updateNavScrolled(window.scrollY); });
-  var pageObs = new MutationObserver(function(){
-    bindActiveScroll();
-  });
-  pageObs.observe(document.body, {attributes:true,subtree:true,attributeFilter:['class']});
-  bindActiveScroll();
 
   /* === ROUTER === */
+  function scopeFor(id){
+    return (id !== 'home' && document.getElementById(id)) || hero;
+  }
+  var current = null;
   function route(){
     var id = location.hash.slice(1) || 'home';
-    document.body.classList.toggle('page-open', id !== 'home');
-    var pages = document.querySelectorAll('.page');
-    for (var i = 0; i < pages.length; i++) pages[i].classList.remove('active');
-    if (id !== 'home'){
-      var page = document.getElementById(id);
-      if (page) { page.classList.add('active'); observeReveal(); }
-    }
     var links = document.querySelectorAll('.nav-links a');
     for (var j = 0; j < links.length; j++){
       var href = links[j].getAttribute('href');
-      var match = (id === 'home' && href === '#') || href === '#' + id;
-      links[j].classList.toggle('active', match);
+      links[j].classList.toggle('active', (id === 'home' && href === '#') || href === '#' + id);
     }
+    var to = scopeFor(id);
+    if (to === current) return;
+    var from = current;
+    current = to;
+    if (!from || reduce){ clearTimeout(closing); show(to); return; }
+    closeAndShow(from, to);
   }
   window.addEventListener('hashchange', route);
-  window.addEventListener('popstate', route);
 
-  /* === SCROLL REVEAL === */
-  var revealObserver = new IntersectionObserver(function(entries){
-    entries.forEach(function(e){
-      if (e.isIntersecting) { e.target.classList.add('revealed'); revealObserver.unobserve(e.target); }
-    });
-  }, {threshold:0.05});
-  var revealTimer = 0;
-  function observeReveal(){
-    requestAnimationFrame(function(){
-      var items = document.querySelectorAll('.tl-item:not(.revealed),.proj-card:not(.revealed),.skills-cat:not(.revealed)');
-      for (var k = 0; k < items.length; k++) revealObserver.observe(items[k]);
-      clearTimeout(revealTimer);
-      revealTimer = setTimeout(function(){
-        var stuck = document.querySelectorAll('.tl-item:not(.revealed),.proj-card:not(.revealed),.skills-cat:not(.revealed)');
-        for (var s = 0; s < stuck.length; s++) stuck[s].classList.add('revealed');
-      }, 1500);
-    });
-  }
-
-  /* === INIT === */
-  route();
-
-  /* Text fades in once its faces have arrived, so the fallback font is
+  /* === INIT ===
+   * Text fades in once its faces have arrived, so the fallback font is
    * never seen swapping. Reading layout first makes the browser start
-   * the font requests, which fonts.ready then waits for. */
+   * the font requests, which fonts.ready then waits for. The hero on
+   * first load keeps 04's fade with the field rather than sweeping. */
+  root.classList.add('no-sweep');
+  if (scopeFor(location.hash.slice(1) || 'home') === hero){
+    var lines = strata(hero);
+    for (var s = 0; s < lines.length; s++) lines[s].classList.add('open');
+  }
   void document.body.offsetWidth;
-  document.fonts.ready.then(function(){ document.documentElement.classList.add('fonts-ready'); });
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ root.classList.remove('no-sweep'); }); });
+  document.fonts.ready.then(function(){
+    root.classList.add('fonts-ready');
+    route();
+  });
 })();
