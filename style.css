@@ -1,3 +1,15 @@
+/* === FONTS ===
+   Served from the site rather than Google Fonts, so browsers that block
+   third-party fonts still get the real faces. Latin and latin-ext only. */
+@font-face{font-family:'Inter';font-style:normal;font-weight:300 800;font-display:swap;src:url(fonts/inter-ext-300-800.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Inter';font-style:normal;font-weight:300 800;font-display:swap;src:url(fonts/inter-300-800.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 700;font-display:swap;src:url(fonts/jetbrains-mono-ext-400-700.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 700;font-display:swap;src:url(fonts/jetbrains-mono-400-700.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Geist';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-ext-100-900.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Geist';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-100-900.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-mono-ext-100-900.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-mono-100-900.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+
 /* === DESIGN TOKENS === */
 :root {
   --bg: #000;
@@ -7,7 +19,37 @@
   --text-primary: #EDEDED;
   --tone: #EDEDED;
   --accent: #FFF;
-  --nav-gap: 52px;
+  --edge: 48px;               /* side gutter of the stage */
+
+  /* Type and placement of the hero and nav, in plain numbers so the
+     tuning page (.claude/review-04/tune.html) can drive them live. */
+  --console-font: 'Geist Mono', monospace;
+  --hero-font: 'Geist', sans-serif;
+  --hero-weight: 500;
+  --hero-vw: 12.5;            /* size in vw, between 1.5rem and --hero-max */
+  --hero-max: 10;             /* rem */
+  --hero-fit: 9.35;           /* the name's width in em, so it never outgrows the gutters */
+  --hero-track: .01;          /* em */
+  --hero-leading: .7;
+  --hero-case: none;
+  --hero-x: 17;               /* where the hero sits: 0 left edge .. 100 right edge */
+  --hero-y: 78;               /* 0 under the nav .. 100 bottom edge */
+  --hero-align: center;
+  --hero-top: 120px;          /* space kept clear for the nav */
+  --intro-size: 1.1;          /* rem */
+  --intro-track: .13;         /* em */
+  --intro-gap: 14;            /* px between PORTFOLIO and the name */
+  --intro-align: left;        /* PORTFOLIO against the name's width */
+  --intro-x: -48;             /* px, nudges PORTFOLIO sideways */
+  --nav-size: 1.15;           /* rem */
+  --nav-track: .23;           /* em */
+  --nav-gap: 17;              /* px between links */
+  --nav-pad: 18;              /* px either side of a link's text */
+  --nav-case: uppercase;
+  --nav-justify: flex-start;
+  --nav-top: 44;              /* px */
+  --nav-x: 73;                /* px, nudges the whole nav sideways */
+  --meta-x: -27;              /* px, nudges the email sideways */
 }
 
 /* === RESET === */
@@ -24,6 +66,7 @@ body{
   -webkit-font-smoothing:antialiased;
   overflow:hidden;height:100vh;margin:0
 }
+::selection{background:var(--accent);color:var(--bg)}
 body.page-open .hero{display:none}
 
 .page{display:none}
@@ -52,47 +95,52 @@ body.page-open .field{opacity:.35}
 .skip-link{
   position:absolute;left:-9999px;top:8px;z-index:200;
   background:var(--bg);color:var(--text-primary);
-  padding:12px 24px;border-radius:4px;
-  font-family:'JetBrains Mono',monospace;font-size:.75rem;
+  padding:13px 24px;
+  font-family:var(--console-font);font-size:.75rem;
   font-weight:500;text-decoration:none;
 }
 .skip-link:focus{left:16px;top:16px}
 
-/* === NAVIGATION === */
+/* === NAVIGATION ===
+   Each link is a cutout the size of its touch target (data-cutout="box"
+   in the markup), so the hole is also what you can click. States stay in
+   greyscale: hover underlines, the current route inverts like a terminal
+   selection, focus draws the outline. */
 nav{
   position:fixed;top:0;left:0;right:0;z-index:100;
-  padding:28px 48px;
-  display:flex;align-items:flex-start;justify-content:space-between;
-  color:var(--tone);
-  transition:.3s;
+  /* --nav-x moves where the nav starts, so the links wrap inside what is
+     left of the width instead of being pushed off the right edge */
+  padding:calc(var(--nav-top) * 1px) var(--edge) calc(var(--nav-top) * 1px) calc(var(--edge) + var(--nav-x) * 1px);
+  display:flex;align-items:flex-start;justify-content:var(--nav-justify);
   pointer-events:none;
 }
 nav > *{pointer-events:auto}
-.nav-left{display:flex;flex-direction:column;gap:6px}
-.nav-links{display:flex;gap:var(--nav-gap,20px);align-items:center}
+.nav-left{display:flex;flex-direction:column;align-items:var(--nav-justify);gap:2px}
+.nav-links{display:flex;flex-wrap:wrap;justify-content:var(--nav-justify);gap:calc(var(--nav-gap) * 1px)}
 .nav-links a{
-  text-decoration:none;
-  color:inherit;
-  font-family:'Inter',sans-serif;
-  font-size:1.3rem;font-weight:600;
-  letter-spacing:.2em;text-transform:uppercase;
-  transition:opacity .2s,transform .25s ease;
-  display:inline-block;
+  display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;
+  /* the right side gives back the tracking after the last letter */
+  padding:0 calc(var(--nav-pad) * 1px - var(--nav-track) * 1em) 0 calc(var(--nav-pad) * 1px);
+  font-family:var(--console-font);
+  font-size:calc(var(--nav-size) * 1rem);font-weight:500;
+  letter-spacing:calc(var(--nav-track) * 1em);text-transform:var(--nav-case);
+  color:var(--text-secondary);
+  text-decoration:none;text-decoration-thickness:1px;text-underline-offset:.45em;
+  transition:color .2s,background-color .2s;
 }
-.nav-links a:hover,.nav-links a:focus-visible{color:var(--accent)}
-.nav-links a.active{color:var(--accent);text-decoration:underline;text-underline-offset:.3em}
+.nav-links a:hover{color:var(--accent);text-decoration-line:underline}
+.nav-links a.active{background:var(--accent);color:var(--bg);text-decoration-line:none}
 .nav-meta{
-  display:flex;align-items:center;gap:8px;
-  font-size:1.1rem;
-  font-family:'JetBrains Mono',monospace;
-  color:var(--tone);
-  letter-spacing:.05em;
+  padding:0 calc(var(--nav-pad) * 1px);
+  font-family:var(--console-font);
+  font-size:calc(var(--nav-size) * .9rem);
+  letter-spacing:.04em;
+  color:var(--text-muted);
+  transform:translateX(calc(var(--meta-x) * 1px));
 }
 nav.scrolled{
   background:var(--bg);
-  color:var(--tone);
   border-bottom:1px solid var(--border);
-  padding:14px 48px;
 }
 
 /* === SECTIONS === */
@@ -100,28 +148,48 @@ section{padding:140px 48px}
 .container{max-width:1200px;margin:0 auto}
 
 .hero{
-  min-height:100vh;
-  display:flex;flex-direction:column;justify-content:flex-end;
-  padding:120px 48px 48px;
+  height:100vh;padding:0;
   position:relative;overflow:hidden;
 }
-.hero-content{margin-bottom:10vh}
+/* Anchored by --hero-x/--hero-y: the same share of the hero's own size
+   is pulled back, so 0 sits flush left or top and 100 flush right or
+   bottom. Each line cuts its own hole round its text, so a nudged
+   PORTFOLIO takes its hole with it. */
+.hero-content{
+  position:absolute;
+  left:calc(var(--edge) + (100% - 2 * var(--edge)) * var(--hero-x) / 100);
+  top:calc(var(--hero-top) + (100% - var(--hero-top) - var(--edge)) * var(--hero-y) / 100);
+  transform:translate(calc(var(--hero-x) * -1%), calc(var(--hero-y) * -1%));
+  max-width:calc(100% - 2 * var(--edge));
+  text-align:var(--hero-align);
+}
 .hero-intro{
-  font-family:'JetBrains Mono',monospace;
-  font-size:1rem;
-  letter-spacing:.2em;
+  font-family:var(--console-font);
+  font-size:calc(var(--intro-size) * 1rem);
+  letter-spacing:calc(var(--intro-track) * 1em);
   color:var(--text-muted);
-  margin-bottom:16px;
+  margin-bottom:calc(var(--intro-gap) * 1px);
+  text-align:var(--intro-align);
+  /* never further left than the side gutter, so it can sit flush with
+     the screen edge but not run off it */
+  transform:translateX(max(calc(var(--intro-x) * 1px), -1 * var(--edge)));
 }
 .hero-name{
-  font-family:'Inter',sans-serif;
-  font-weight:800;
-  font-size:clamp(1.5rem,6.5vw,10rem);
-  letter-spacing:-.04em;
-  line-height:.88;
-  text-transform:uppercase;
+  font-family:var(--hero-font);
+  font-weight:var(--hero-weight);
+  font-size:min(clamp(1.5rem, calc(var(--hero-vw) * 1vw), calc(var(--hero-max) * 1rem)), calc((100vw - 2 * var(--edge)) / var(--hero-fit)));
+  letter-spacing:calc(var(--hero-track) * 1em);
+  line-height:var(--hero-leading);
+  text-transform:var(--hero-case);
   color:var(--text-primary);
 }
+
+/* First paint: the text fades up with the field once its faces are in
+   (script.js sets .fonts-ready), so nothing appears at full opacity in
+   one frame and the fallback font is never seen. The curve is the
+   field's own intro ease. */
+.js .nav-left,.js .hero-content{opacity:0;transition:opacity 1.6s cubic-bezier(.37,0,.63,1)}
+.js.fonts-ready .nav-left,.js.fonts-ready .hero-content{opacity:1}
 
 /* === SECTION HEADER === */
 .sect-header{
@@ -541,7 +609,7 @@ section{padding:140px 48px}
 .tl-item:nth-child(6){transition-delay:.5s}
 @media (prefers-reduced-motion: reduce) {
   .tl-item,.proj-card,.skills-cat{opacity:1;transform:none;transition:none}
-  .field{transition:none}
+  .field,.js .nav-left,.js .hero-content{transition:none}
 }
 
 /* === SHARED COLOR TOKENS === */
@@ -565,10 +633,8 @@ footer{
 
 /* === RESPONSIVE: 1024px === */
 @media(max-width:1024px){
+  :root{--edge:32px}
   section{padding:100px 32px}
-  .hero{padding:120px 32px 48px}
-  nav{padding:24px 32px}
-  nav.scrolled{padding:12px 32px}
   .tl-item{padding:32px}
   .proj-card{padding:32px}
   .skills-grid{gap:0}
@@ -576,10 +642,8 @@ footer{
   footer{padding:16px 32px;font-size:.6rem}
 }
 @media(max-width:720px){
+  :root{--edge:24px}
   section{padding:80px 24px}
-  .hero{padding:100px 24px 32px}
-  nav{padding:20px 24px}
-  nav.scrolled{padding:12px 24px;background:var(--bg);color:var(--tone)}
   .skills-grid{grid-template-columns:1fr}
   .skills-cat{border-right:none}
   .skills-cat:last-child{border-bottom:none}
@@ -594,18 +658,11 @@ footer{
   .proj-card:nth-last-child(-n+2){border-bottom:1px solid var(--border)}
   .contact-split{grid-template-columns:1fr;gap:40px}
   .nav-meta{display:none}
-  .nav-links{gap:20px}
-  .nav-links a{font-size:.7rem;letter-spacing:.1em}
   footer{padding:12px 24px;font-size:.6rem}
 }
 @media(max-width:480px){
+  :root{--edge:16px;--nav-pad:8;--hero-top:88px}
   section{padding:60px 16px}
-  .hero{padding:80px 16px 24px}
-  nav{padding:16px 12px}
-  nav.scrolled{padding:10px 12px}
-  :root{--nav-gap:12px}
-  .nav-links{gap:12px}
-  .nav-links a{font-size:.65rem}
   .tl-item{padding:20px}
   .proj-card{padding:20px}
   .skills-cat{padding:20px}

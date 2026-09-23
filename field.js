@@ -46,7 +46,15 @@
     curve: 1.3,                                // below 1 favours dense glyphs, above 1 sparse ones
     dither: 0.7,                               // each cell's brightness scaled by up to +-dither/2, fixed per cell
     greyMid: 4, greyBright: 6,                 // tone at which the mid grey and white start
-    greys: [123, 199, 255]
+    greys: [123, 199, 255],
+    /* Cutouts: holes the field leaves around the page's text. Padding is
+     * in cells on top of snapping outward, per side; rag lets each row
+     * and column of that side's edge stick out by up to that many more
+     * cells. The fill is the hole's grey (0 is the stage black) and fades
+     * over cutFade seconds as a hole opens or closes. */
+    cutPadL: 0.25, cutPadR: 8, cutPadT: 0, cutPadB: 0,
+    cutRagL: 6, cutRagR: 0, cutRagT: 0, cutRagB: 0,
+    cutFill: 31, cutFade: 0.05
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
@@ -200,11 +208,11 @@
     var f = {
       seed: seed | 0, cols: 0, rows: 0, aspect: aspect || 1,
       real: 0, time: 0,
-      level: null, tone: null, grey: null, glyph: null, section: null,
+      level: null, tone: null, grey: null, glyph: null, section: null, cut: null, fill: null,
       tiles: [], waves: [makeWaves(rnd), makeWaves(rnd), makeWaves(rnd)],
-      step: step, resize: resize
+      step: step, resize: resize, setCutouts: setCutouts
     };
-    var rampGlyphs = [[], [], []], toneStep = 1;
+    var rampGlyphs = [[], [], []], toneStep = 1, cutouts = [];
 
     function toneOf(v){
       if (v < PARAMS.threshold) return 0;
@@ -293,17 +301,77 @@
 
     function resize(c, r){
       var n = c * r;
-      var level = new Float32Array(n), tone = new Uint8Array(n), grey = new Uint8Array(n), glyph = new Uint8Array(n);
+      var level = new Float32Array(n), tone = new Uint8Array(n), grey = new Uint8Array(n), glyph = new Uint8Array(n), fill = new Float32Array(n);
       for (var y = 0; y < Math.min(r, f.rows); y++){
         for (var x = 0; x < Math.min(c, f.cols); x++){
           var a = y * f.cols + x, b = y * c + x;
-          level[b] = f.level[a]; tone[b] = f.tone[a]; grey[b] = f.grey[a]; glyph[b] = f.glyph[a];
+          level[b] = f.level[a]; tone[b] = f.tone[a]; grey[b] = f.grey[a]; glyph[b] = f.glyph[a]; fill[b] = f.fill[a];
         }
       }
       f.cols = c; f.rows = r;
       f.section = new Uint8Array(n); f.shape = new Float32Array(n); f.weight = new Float32Array(n);
-      f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph;
+      f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph; f.fill = fill;
       buildTiles(f.tiles);
+      cutHoles();
+    }
+
+    /* === CUTOUTS ===
+     * Boxes in cell units (fractions allowed) where the field draws
+     * nothing. A box covers every cell it touches, so the hole's edge is
+     * the cell grid and no glyph sits half inside it. Covering is instant:
+     * everything under a hole is emptied on the call, not on the next
+     * tick. Uncovering is not special: the cells start from empty and
+     * rise under the usual one-tone-per-tick slew. Only the hole's fill
+     * eases, in step, since a grey panel popping in would be a yank. */
+    function setCutouts(list){
+      cutouts = list || [];
+      cutHoles();
+    }
+    /* How far one row or column of an edge sticks out: along is the row
+     * or column, edge is where that edge sits, side is left, right, top
+     * or bottom. */
+    function ragAt(along, edge, side){
+      var P = PARAMS, rag = [P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB][side];
+      return Math.floor(hash3(f.seed, along, edge, 20 + side) * (Math.floor(rag) + 1));
+    }
+    function cutHoles(){
+      var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows);
+      function fill(x0, y0, x1, y1){
+        x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(cols, x1); y1 = Math.min(rows, y1);
+        for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) cut[y * cols + x] = 1;
+      }
+      for (var k = 0; k < cutouts.length; k++){
+        var r = cutouts[k];
+        var x0 = Math.floor(r.x0 - P.cutPadL), x1 = Math.ceil(r.x1 + P.cutPadR);
+        var y0 = Math.floor(r.y0 - P.cutPadT), y1 = Math.ceil(r.y1 + P.cutPadB);
+        if (x1 <= 0 || y1 <= 0 || x0 >= cols || y0 >= rows) continue;
+        fill(x0, y0, x1, y1);
+        /* Rag is hashed from the edge's own position, so a box that has
+         * not moved keeps the same outline. */
+        for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1), y + 1); }
+        for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3)); }
+      }
+      for (var i = 0; i < cut.length; i++) if (cut[i]){ f.level[i] = 0; f.tone[i] = 0; f.grey[i] = 0; f.glyph[i] = 0; }
+      for (var ti = 0; ti < f.tiles.length; ti++){
+        var t = f.tiles[ti];
+        if (t.fine) for (var q = 0; q < FINE * FINE; q++){
+          var qx = t.x * TILE + ((q % FINE) >> 1), qy = t.y * TILE + (Math.floor(q / FINE) >> 1);
+          if (qx < cols && qy < rows && cut[qy * cols + qx]){ t.fine.level[q] = 0; t.fine.tone[q] = 0; t.fine.grey[q] = 0; t.fine.glyph[q] = 0; }
+        }
+        for (var si = 0; si < LARGE.length; si++){
+          var s = LARGE[si], n = TILE / s;
+          for (var c = 0; c < n * n; c++){
+            var cell = t.cells[s][c];
+            if (inCut(t.x * TILE + (c % n) * s, t.y * TILE + Math.floor(c / n) * s, s)){ cell.glyph = cell.fromGlyph = 0; cell.grey = cell.fromGrey = 0; cell.u = 1; }
+          }
+        }
+      }
+    }
+    /* Whether a glyph of size s at (x0, y0) touches a cut cell. */
+    function inCut(x0, y0, s){
+      for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
+        for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) if (f.cut[y * f.cols + x]) return true;
+      return false;
     }
 
     function step(dtMs){
@@ -321,13 +389,17 @@
       var cap = toneStep * 0.95;
       var gain = f.real < INTRO ? easeInOutSine(f.real / INTRO) : 1;
       var rise = Math.min(P.rise * dt, cap), fall = Math.min(P.fall * dt, cap);
+      var fillStep = dt / P.cutFade;
       for (var y = 0; y < f.rows; y++){
         for (var x = 0; x < f.cols; x++){
           var i = y * f.cols + x, sec = f.section[i];
+          var want = f.cut[i] ? gain : 0;
+          f.fill[i] = want > f.fill[i] ? Math.min(want, f.fill[i] + fillStep) : Math.max(want, f.fill[i] - fillStep);
           f.shape[i] = shapeAt(sec, x, y);
           f.weight[i] = weightAt(x, y) * gain;
           var target = Math.min(1, f.shape[i] * f.weight[i]), v = f.level[i];
-          if (target > v) v = Math.min(target, v + rise);
+          if (f.cut[i]) v = 0;
+          else if (target > v) v = Math.min(target, v + rise);
           else v = Math.max(target, v - fall);
           var tone = toneOf(v);
           f.level[i] = v;
@@ -378,7 +450,8 @@
         /* The top-left quarter sits where the cell itself was sampled. */
         var shape = (sx & 1) || (sy & 1) ? shapeAt(sec, x + (sx & 1) * SMALL, y + (sy & 1) * SMALL) : f.shape[i];
         var target = Math.min(1, shape * f.weight[i]), v = q.level[k];
-        if (target > v) v = Math.min(target, v + rise);
+        if (f.cut[i]) v = 0;
+        else if (target > v) v = Math.min(target, v + rise);
         else v = Math.max(target, v - fall);
         var tone = toneOf(v);
         q.level[k] = v; q.tone[k] = tone; q.grey[k] = greyOf(tone); q.glyph[k] = glyphFor(sec, tone);
@@ -398,6 +471,7 @@
           /* A 1.5x glyph straddles cells, so take every cell it overlaps. */
           for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
             for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) v = Math.max(v, f.level[y * f.cols + x]);
+          if (inCut(x0, y0, s)){ c.glyph = c.fromGlyph = c.grey = c.fromGrey = 0; c.u = 1; continue; }
           c.u = Math.min(1, c.u + dt / PARAMS.glyphFade);
           var tone = toneOf(v), gr = greyOf(tone);
           var g = glyphFor(f.section[Math.floor(y0) * f.cols + Math.floor(x0)], tone);
@@ -427,7 +501,7 @@
   /* A cell is GWxGH glyph pixels of PARAMS.pixel CSS px each; larger sizes
    * are the same bitmap with chunkier pixels. */
   var GW = 6, GH = 8, PX = 0, CW = 0, CH = 0;
-  var atlas = null, atlasGreys = '', dpr = 1, field = null, raf = 0, last = 0, owed = 0;
+  var atlas = null, atlasGreys = '', dpr = 1, field = null, raf = 0, last = 0, owed = 0, cutKey = '';
 
   /* One row of glyphs per grey, drawn pixel by pixel: hard edges, no
    * antialiasing, and only the three greys ever reach the canvas. */
@@ -464,6 +538,52 @@
     var cols = Math.ceil(w / CW), rows = Math.ceil(h / CH);
     if (!field) newField(cols, rows);
     else field.resize(cols, rows);
+    cutKey = '';
+    field.setCutouts(measure());
+  }
+
+  /* Holes follow the elements marked data-cutout: "text" cuts around
+   * each line of the element's text, "block" one hole round all of it,
+   * "box" round its border box and its children's (the nav strip, which
+   * keeps covering the email when that is nudged out of line).
+   * Measured in viewport px, handed to the model in cells. */
+  var range = document.createRange(), watched = new WeakSet();
+  var resizeWatch = window.ResizeObserver ? new ResizeObserver(function(){ sync(); }) : null;
+  function boxOf(el){
+    var r = el.getBoundingClientRect(), x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom, kids = el.querySelectorAll('*');
+    for (var i = 0; i < kids.length; i++){
+      var k = kids[i].getBoundingClientRect();
+      if (k.width > 0 && k.height > 0){ x0 = Math.min(x0, k.left); y0 = Math.min(y0, k.top); x1 = Math.max(x1, k.right); y1 = Math.max(y1, k.bottom); }
+    }
+    return { left: x0, top: y0, right: x1, bottom: y1, width: x1 - x0, height: y1 - y0 };
+  }
+  function measure(){
+    var els = document.querySelectorAll('[data-cutout]'), out = [];
+    for (var i = 0; i < els.length; i++){
+      var el = els[i], rects;
+      if (resizeWatch && !watched.has(el)){ resizeWatch.observe(el); watched.add(el); }
+      var mode = el.getAttribute('data-cutout');
+      if (mode === 'box') rects = [boxOf(el)];
+      else { range.selectNodeContents(el); rects = mode === 'block' ? [range.getBoundingClientRect()] : range.getClientRects(); }
+      for (var k = 0; k < rects.length; k++){
+        var r = rects[k];
+        if (r.width > 0 && r.height > 0) out.push({ x0: r.left / CW, y0: r.top / CH, x1: r.right / CW, y1: r.bottom / CH });
+      }
+    }
+    return out;
+  }
+  /* Called every display frame and on anything that moves text, so a
+   * hole is never a frame behind its text. Redraws at once when the
+   * holes changed; the model has already emptied what they cover. */
+  function sync(){
+    if (!field) return;
+    var boxes = measure(), P = PARAMS;
+    var key = JSON.stringify(boxes) + [P.cutPadL, P.cutPadR, P.cutPadT, P.cutPadB, P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB].join();
+    if (key === cutKey) return;
+    cutKey = key;
+    field.setCutouts(boxes);
+    if (reduce) settle();
+    draw();
   }
 
   function blit(s, glyph, grey, x, y, alpha){
@@ -504,6 +624,20 @@
     ctx.globalAlpha = 1;
     ctx.imageSmoothingEnabled = false;         // resizing the canvas resets it
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    /* Hole fills go under the glyphs, so a closing hole's glyphs fade in
+     * over its fading fill. */
+    if (PARAMS.cutFill > 0){
+      var g = PARAMS.cutFill | 0, cols = field.cols;
+      ctx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
+      for (var c = 0; c < field.fill.length; c++){
+        if (field.fill[c] <= 0) continue;
+        var cx = c % cols, cy = (c - cx) / cols;
+        var x0 = Math.round(cx * CW * dpr), y0 = Math.round(cy * CH * dpr);
+        ctx.globalAlpha = field.fill[c];
+        ctx.fillRect(x0, y0, Math.round((cx + 1) * CW * dpr) - x0, Math.round((cy + 1) * CH * dpr) - y0);
+      }
+      ctx.globalAlpha = 1;
+    }
     for (var i = 0; i < field.tiles.length; i++){
       var t = field.tiles[i];
       if (t.from === t.to) drawLayer(t, t.to, 1);
@@ -522,6 +656,7 @@
       field.step(tickMs);
       draw();
     }
+    sync();
     raf = requestAnimationFrame(frame);
   }
   function play(){
@@ -540,15 +675,18 @@
     for (var k = 0; k < 150; k++) field.step(1000 / PARAMS.fps);
   }
 
-  /* The tuning page (.claude/review-02/tune.html) reaches the live values
-   * and a reseed through this handle. */
+  /* The tuning pages (.claude/review-02/tune.html for the field,
+   * .claude/review-04/tune.html for the cutouts) reach the live values, a
+   * reseed and the cut cells through this handle. */
   window.asciiField = {
     params: PARAMS,
     defaults: DEFAULTS,
     glyphs: Object.keys(GLYPHS),
     bitmaps: GLYPHS,
     large: LARGE,
-    reseed: function(){ newField(field.cols, field.rows); if (reduce){ settle(); draw(); } },
+    reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
+    /* The cut cells, for the tuning page's hole overlay. */
+    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut }; },
     /* What is on screen now: for each section, how many cells show each
      * tone of its ramp, plus the share of tiles at each size. */
     stats: function(){
@@ -572,6 +710,12 @@
       if (reduce) settle();
       draw();
     });
+    /* A web font arriving reflows the text; a focused skip link moves
+     * on screen without changing size. */
+    if (document.fonts) document.fonts.addEventListener('loadingdone', sync);
+    document.addEventListener('focusin', sync);
+    document.addEventListener('focusout', function(){ setTimeout(sync); });
+    window.addEventListener('hashchange', sync);
     if (reduce){
       settle();
       draw();

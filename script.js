@@ -61,4 +61,10 @@
 
   /* === INIT === */
   route();
+
+  /* Text fades in once its faces have arrived, so the fallback font is
+   * never seen swapping. Reading layout first makes the browser start
+   * the font requests, which fonts.ready then waits for. */
+  void document.body.offsetWidth;
+  document.fonts.ready.then(function(){ document.documentElement.classList.add('fonts-ready'); });
 })();
