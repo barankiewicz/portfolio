@@ -31,7 +31,7 @@
     gain: 1.8,                                 // overall brightness
     contrast: 2.45,                            // around mid grey; above 1 sharpens
     patterns: ['waves', 'waves', 'cells'],
-    scales: [0.065, 0.26, 0.4],
+    scales: [0.065, 0.26, 0.13],
     ramps: [['·', '∘', '○', '░', '▒', '▓'], ['.', 'x', 'y', '#', '▞', '▓'], ['.', ',', '+', '*', '0', '1']],
     /* waveHigh below waveLow inverts the waves: the troughs glow. */
     waveSpeed: 0.9, ringWeight: 3, ringSpeed: 2.25, waveLow: 0.42, waveHigh: 0.07,
@@ -55,7 +55,7 @@
      * over cutFade seconds as a hole opens or closes. */
     cutPadL: 0.25, cutPadR: 8, cutPadT: 0, cutPadB: 0,
     cutRagL: 6, cutRagR: 0, cutRagT: 0, cutRagB: 0,
-    cutFill: 31, cutFade: 0.05,
+    cutFill: 9, cutFade: 0.05,
     /* How a hole sweeps open: in bands one cell row tall, each opening
      * over its own share of the timeline. Shuffle 0 is a top-down
      * cascade, 1 is scanline disorder; length is a band's share of the
@@ -348,35 +348,14 @@
       cutouts = list || [];
       cutHoles();
     }
-    /* How far one row or column of an edge sticks out: along is the row
-     * or column, edge is where that edge sits, side is left, right, top
-     * or bottom. */
-    function ragAt(along, edge, side, rags){
-      var rag = rags[side];
-      return Math.floor(hash3(f.seed, along, edge, 20 + side) * (Math.floor(rag) + 1));
-    }
     function cutHoles(){
-      var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows), mask;
+      var cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows);
       f.soft = new Uint8Array(cols * rows);
       /* a hole's own fill grey, or -1 for the global cutFill, read live */
       var grey = f.fillGrey = new Int16Array(cols * rows).fill(-1);
-      var pads = [P.cutPadL, P.cutPadR, P.cutPadT, P.cutPadB], rags = [P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB];
-      function fill(x0, y0, x1, y1){
-        x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(cols, x1); y1 = Math.min(rows, y1);
-        for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++){ mask[y * cols + x] = 1; if (own != null) grey[y * cols + x] = own; }
-      }
       for (var k = 0; k < cutouts.length; k++){
-        var r = cutouts[k];
-        mask = r.soft ? f.soft : cut;
-        var pad = r.pad || pads, rag = r.rag || rags, own = r.fill;
-        var x0 = Math.floor(r.x0 - pad[0]), x1 = Math.ceil(r.x1 + (r.padR != null ? r.padR : pad[1]));
-        var y0 = Math.floor(r.y0 - pad[2]), y1 = Math.ceil(r.y1 + pad[3]);
-        if (x1 <= 0 || y1 <= 0 || x0 >= cols || y0 >= rows) continue;
-        fill(x0, y0, x1, y1);
-        /* Rag is hashed from the edge's own position, so a box that has
-         * not moved keeps the same outline. */
-        for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0, rag), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1, rag), y + 1); }
-        for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2, rag), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3, rag)); }
+        var r = cutouts[k], mask = r.soft ? f.soft : cut, cells = boxCells(f.seed, r, PARAMS, cols, rows);
+        for (var j = 0; j < cells.length; j++){ mask[cells[j]] = 1; if (r.fill != null) grey[cells[j]] = r.fill; }
       }
       for (var i = 0; i < cut.length; i++) if (cut[i]){ f.soft[i] = 0; f.level[i] = 0; f.tone[i] = 0; f.grey[i] = 0; f.glyph[i] = 0; }
       for (var ti = 0; ti < f.tiles.length; ti++){
@@ -589,6 +568,32 @@
     return f;
   }
 
+  /* === HOLE CELLS ===
+   * The cells one box's hole covers on a cols x rows grid, as indices:
+   * the box snapped outward to whole cells, grown by its padding (its
+   * own pad, padR on the right, or the params'), then each row and column
+   * of each edge sticking out by up to its side's rag. Rag is hashed from
+   * the seed and the edge's own position, so a box that has not moved
+   * keeps the same outline. The field cuts its holes with this, and the
+   * cloud clip cuts PORTFOLIO's hole in the video with it, so the two
+   * holes are the same cells. */
+  function boxCells(seed, r, P, cols, rows){
+    var out = [];
+    var pad = r.pad || [P.cutPadL, P.cutPadR, P.cutPadT, P.cutPadB], rag = r.rag || [P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB];
+    var x0 = Math.floor(r.x0 - pad[0]), x1 = Math.ceil(r.x1 + (r.padR != null ? r.padR : pad[1]));
+    var y0 = Math.floor(r.y0 - pad[2]), y1 = Math.ceil(r.y1 + pad[3]);
+    if (x1 <= 0 || y1 <= 0 || x0 >= cols || y0 >= rows) return out;
+    function ragAt(along, edge, side){ return Math.floor(hash3(seed, along, edge, 20 + side) * (Math.floor(rag[side]) + 1)); }
+    function fill(a0, b0, a1, b1){
+      a0 = Math.max(0, a0); b0 = Math.max(0, b0); a1 = Math.min(cols, a1); b1 = Math.min(rows, b1);
+      for (var y = b0; y < b1; y++) for (var x = a0; x < a1; x++) out.push(y * cols + x);
+    }
+    fill(x0, y0, x1, y1);
+    for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1), y + 1); }
+    for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3)); }
+    return out;
+  }
+
   /* === SWEEP BANDS ===
    * The windows [a, b] of a 0..1 timeline over which each of n bands
    * opens, fixed per seed. bandAt says how open a band is at a point of
@@ -610,7 +615,7 @@
     return p * (2 - p);
   }
 
-  var api = { sweepBands: sweepBands, bandAt: bandAt, createField: createField, mulberry32: mulberry32, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
+  var api = { sweepBands: sweepBands, bandAt: bandAt, boxCells: boxCells, createField: createField, mulberry32: mulberry32, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER === */
@@ -742,9 +747,11 @@
     if (fill) o.fill = +fill;
     return o;
   }
+  var byEl = new Map();                        // each element's boxes from the last measure, for cutsOf
   function measure(){
     var els = document.querySelectorAll('[data-cutout]'), out = [], pad = PARAMS.cutPadR * CW;
     clips.clear();
+    byEl = new Map();
     for (var i = 0; i < els.length; i++){
       var el = els[i], rects;
       if (resizeWatch && !watched.has(el)){ resizeWatch.observe(el); watched.add(el); }
@@ -752,7 +759,7 @@
       if (mode === 'box') rects = [boxOf(el)];
       else { range.selectNodeContents(el); rects = mode === 'block' ? [range.getBoundingClientRect()] : range.getClientRects(); }
       if (!rects.length || !(rects[0].width > 0)) continue;
-      var own = ownHole(el), padPx = own.pad ? own.pad[1] * CW : pad;
+      var own = ownHole(el), padPx = own.pad ? own.pad[1] * CW : pad, from = out.length;
       var clip = el.closest('[data-cutout-clip]'), c = clip && clipBox(clip);
       var sweep = null, e, cut = 1, txt = 1;
       if (el.hasAttribute('data-sweep')){
@@ -785,6 +792,7 @@
           }
         }
       }
+      byEl.set(el, out.slice(from));
     }
     return out;
   }
@@ -837,8 +845,14 @@
     }
   }
 
+  var fillShown = -1;
   function draw(){
     if (PARAMS.greys.join() !== atlasGreys) buildAtlas();
+    /* the regular holes' grey, for text that takes it (PORTFOLIO) */
+    if ((PARAMS.cutFill | 0) !== fillShown){
+      fillShown = PARAMS.cutFill | 0;
+      document.documentElement.style.setProperty('--cut-fill', 'rgb(' + fillShown + ',' + fillShown + ',' + fillShown + ')');
+    }
     if (PARAMS.pixel !== PX) fit();
     ctx.globalAlpha = 1;
     ctx.imageSmoothingEnabled = false;         // resizing the canvas resets it
@@ -909,6 +923,14 @@
     reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
     /* re-measure the holes now, for a cutout that appears on its own */
     sync: function(){ sync(); },
+    /* The cells an element's hole covers right now, hard and soft, as
+     * indices on the field's grid: the cloud clip cuts the same hole in
+     * the video for PORTFOLIO, so it tears open with the same bands. */
+    cutsOf: function(el){
+      var boxes = byEl.get(el) || [], out = [];
+      for (var i = 0; i < boxes.length; i++) out = out.concat(boxCells(field.seed, boxes[i], PARAMS, field.cols, field.rows));
+      return out;
+    },
     /* The cut cells, for the tuning page's hole overlay, and the soft
      * cells and tones, for the review probes. */
     holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone, fill: field.fill, section: field.section }; },

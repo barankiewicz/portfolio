@@ -146,7 +146,11 @@
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var FPS = 8, SW = 64, SH = 36, GW = 6, GH = 8;
   var hero = document.querySelector('.hero'), home = canvas.parentNode, away = document.body;
+  var intro = document.querySelector('.hero-intro'), introCells = '';
   var frames = [], cells = null, count = 0, ready = false;
+  /* set a frame after the clip takes data-sweep: .open any sooner and it
+   * would land fully open, with nothing for its sweep to start from */
+  var swept = false;
 
   /* The whole file is fetched first and seeked in memory: a server
    * without range requests leaves a streamed video unseekable, and every
@@ -194,6 +198,10 @@
     box = { key: key, cols: cols, rows: rows, gx: Math.round(r.left / holes.cw), gy: Math.round(r.top / holes.ch), w: r.width, h: r.height,
       rects: coverRects(cols, rows, r.width, r.height, SW, SH), tone: new Uint8Array(cols * rows), fresh: true };
     canvas.width = Math.round(r.width * d); canvas.height = Math.round(r.height * d);
+    /* where PORTFOLIO is placed from (style.css) */
+    var rs = document.documentElement.style;
+    rs.setProperty('--clip-x', r.left + 'px'); rs.setProperty('--clip-y', r.top + 'px');
+    rs.setProperty('--clip-w', r.width + 'px'); rs.setProperty('--clip-h', r.height + 'px');
     take = document.createElement('canvas');
     take.width = cols * GW; take.height = rows * GH;
     takeCtx = take.getContext('2d');
@@ -296,7 +304,26 @@
         ctx.drawImage(take, 0, g.r0 * GH, take.width, (g.r1 - g.r0) * GH, 0, y0, canvas.width, y1 - y0);
       }
     }
+    cutIntro();
     dirty = false;
+  }
+
+  /* PORTFOLIO's hole, cut into the video: the very cells its hole in the
+   * field covers (field.cutsOf), so it has the field's pad, rag and
+   * scanline bands, in its own fill grey. Drawn over the take too. */
+  function introHole(){ return intro && intro.hasAttribute('data-cutout') ? field.cutsOf(intro) : []; }
+  function cutIntro(){
+    var cells = introHole(), holes = field.holes(), sx = canvas.width / box.cols, sy = canvas.height / box.rows;
+    var g = intro && intro.getAttribute('data-cutout-fill');
+    g = g != null && g !== '' ? +g : field.params.cutFill;
+    ctx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
+    for (var i = 0; i < cells.length; i++){
+      var c = cells[i] % holes.cols - box.gx, r = Math.floor(cells[i] / holes.cols) - box.gy;
+      if (c < 0 || r < 0 || c >= box.cols || r >= box.rows) continue;
+      var x0 = Math.round(c * sx), y0 = Math.round(r * sy);
+      ctx.fillRect(x0, y0, Math.round((c + 1) * sx) - x0, Math.round((r + 1) * sy) - y0);
+    }
+    introCells = cells.join();
   }
 
   /* home: the clip lives in the hero, so it opens and closes with the
@@ -307,7 +334,7 @@
     if (canvas.parentNode !== parent) parent.insertBefore(canvas, parent === away ? away.firstChild : null);
     canvas.classList.toggle('everywhere', P.routes === 'all');
     canvas.classList.toggle('dim', !!P.dim);
-    if (P.routes === 'all' && ready) canvas.classList.add('open');
+    if (P.routes === 'all' && swept) canvas.classList.add('open');
   }
 
   function frame(now){
@@ -320,7 +347,7 @@
     stepGlitches();
     if (glitch && ticked){ drawTake(frameAt(clock)); dirty = true; }
     ticked = false;
-    if (dirty || frameAt(clock) !== shownFrame) draw();
+    if (dirty || frameAt(clock) !== shownFrame || introHole().join() !== introCells) draw();
   }
   function play(){
     if (raf || document.hidden) return;
@@ -339,11 +366,16 @@
     draw();
     canvas.setAttribute('data-cutout', 'box');
     canvas.setAttribute('data-sweep', '');
+    if (intro){ intro.setAttribute('data-cutout', 'text'); intro.setAttribute('data-sweep', ''); }
     place();
     field.sync();
+    draw();
     requestAnimationFrame(function(){
+      swept = true;
       canvas.classList.add('ready');
-      if (PARAMS.routes === 'all' || !document.body.classList.contains('page-open')) canvas.classList.add('open');
+      var home = !document.body.classList.contains('page-open');
+      if (PARAMS.routes === 'all' || home) canvas.classList.add('open');
+      if (intro && home) intro.classList.add('open');
     });
   }
 
