@@ -38,6 +38,16 @@ body.page-open .hero{display:none}
   padding-bottom:80px;
 }
 
+/* === ASCII FIELD ===
+   Fixed behind everything. It dims while a content page is open so body
+   text keeps its contrast until 05 cuts the pages out of it. */
+.field{
+  position:fixed;inset:0;z-index:0;
+  pointer-events:none;
+  transition:opacity .6s cubic-bezier(.16,1,.3,1);
+}
+body.page-open .field{opacity:.35}
+
 /* === SKIP LINK === */
 .skip-link{
   position:absolute;left:-9999px;top:8px;z-index:200;
@@ -93,7 +103,6 @@ section{padding:140px 48px}
   min-height:100vh;
   display:flex;flex-direction:column;justify-content:flex-end;
   padding:120px 48px 48px;
-  background:var(--bg);
   position:relative;overflow:hidden;
 }
 .hero-content{margin-bottom:10vh}
@@ -532,6 +541,7 @@ section{padding:140px 48px}
 .tl-item:nth-child(6){transition-delay:.5s}
 @media (prefers-reduced-motion: reduce) {
   .tl-item,.proj-card,.skills-cat{opacity:1;transform:none;transition:none}
+  .field{transition:none}
 }
 
 /* === SHARED COLOR TOKENS === */
