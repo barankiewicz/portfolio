@@ -305,6 +305,7 @@ nav > *{pointer-events:auto}
   text-decoration-thickness:1px;text-underline-offset:.2em;
 }
 .proj-shot-link:hover .proj-visit{text-decoration-line:underline}
+.proj-visit-icon{display:inline-block;width:.7em;height:.7em;margin-left:.2em;vertical-align:baseline}
 
 .proj-title-row{display:flex;align-items:center;gap:6px}
 .proj-head h3,.work-card h3{
@@ -343,7 +344,7 @@ nav > *{pointer-events:auto}
 /* === CONTACT === */
 .contact-intro{font-size:1.2rem;line-height:1.6;color:var(--text-primary)}
 .channel-item{
-  display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;
+  display:block;
   width:fit-content;max-width:calc(100% - var(--at, 0) * var(--step));
   text-decoration:none;
   color:var(--text-primary);
@@ -358,7 +359,6 @@ nav > *{pointer-events:auto}
   text-decoration-thickness:1px;text-underline-offset:.18em;
 }
 .channel-item:hover > div{color:var(--accent);text-decoration-line:underline}
-.channel-num{font-family:var(--console-font);font-size:.85rem;font-variant-numeric:tabular-nums;color:var(--text-muted)}
 /* inline-block stops the value's hover underline running through it */
 .channel-item .clabel{display:inline-block;margin-bottom:4px;font-family:var(--hero-font);font-weight:400;font-size:1rem;letter-spacing:0;color:var(--text-muted)}
 
@@ -435,6 +435,5 @@ footer{
   .stratum{margin-top:40px;padding:18px 8px 22px calc(var(--nav-pad) * 1px)}
   .tl-year{font-size:1.15rem}
   .channel-item > div{font-size:1.2rem}
-  .channel-item{gap:12px}
   footer{padding:10px 16px;font-size:.55rem}
 }
