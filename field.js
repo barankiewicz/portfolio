@@ -55,7 +55,7 @@
      * over cutFade seconds as a hole opens or closes. */
     cutPadL: 0.25, cutPadR: 8, cutPadT: 0, cutPadB: 0,
     cutRagL: 6, cutRagR: 0, cutRagT: 0, cutRagB: 0,
-    cutFill: 31, cutFade: 0.05,
+    cutFill: 9, cutFade: 0.05,
     /* How a hole sweeps open: in bands one cell row tall, each opening
      * over its own share of the timeline. Shuffle 0 is a top-down
      * cascade, 1 is scanline disorder; length is a band's share of the
