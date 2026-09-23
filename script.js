@@ -81,15 +81,16 @@
   }
 
   /* === SCREENSHOT DITHER ===
-   * Each project screenshot is redrawn at the field's 2px pixel in the
+   * Each project screenshot is redrawn at 1px dots in the
    * field's own greys plus black, ordered-dithered with a 4x4 Bayer
    * matrix after stretching its levels, so the plate is made of the same
    * stuff as the field. The plain greyscale image stays underneath (and
    * carries the alt text); hovering or focusing the link fades the dither
    * off it. Redrawn whenever the plate changes size. */
   var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  var DOT = 1;                 // CSS px per dither pixel: half the field's, so the shots stay legible
   function dither(img){
-    var box = img.parentNode, w = Math.round(box.clientWidth / 2), h = Math.round(box.clientHeight / 2);
+    var box = img.parentNode, w = Math.round(box.clientWidth / DOT), h = Math.round(box.clientHeight / DOT);
     if (!w || !h || !img.naturalWidth) return;
     var c = box.querySelector('.proj-dither');
     if (c && c.width === w && c.height === h) return;

@@ -275,7 +275,7 @@ nav > *{pointer-events:auto}
 /* === PROJECTS & WORK ===
    A project is three strata: its plate, its head, its notes. The plate
    has no frame of its own: the hole is the frame. The screenshot shows
-   through a dither in the field's own three greys at the field's 2px
+   through a dither in the field's own three greys at 1px dots
    pixel (script.js draws it), and resolves to the plain greyscale shot
    while the link is hovered or focused. */
 .proj-plate{width:calc(var(--col) + var(--step));padding:16px 16px 14px calc(var(--nav-pad) * 1px)}
