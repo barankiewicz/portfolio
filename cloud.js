@@ -16,18 +16,18 @@
    * Placement is CSS (--cloud-* on :root) and the hole's pad, rag and
    * fill are attributes on the canvas; everything else is here. */
   var DEFAULTS = {
-    gapMin: 3, gapMax: 12,                     // s between glitches
-    lenMin: 0.15, lenMax: 3,                   // s a glitch lasts
-    lenSkew: 2.5,                              // above 1 most glitches are short
+    gapMin: 2, gapMax: 4,                       // s between glitches
+    lenMin: 0.5, lenMax: 2.9,                   // s a glitch lasts
+    lenSkew: 3.7,                              // above 1 most glitches are short
     stutter: 0,                                // chance a glitch comes as 2-3 quick ones
     swap: 'bands',                             // 'bands', or 'cut': the whole clip in one frame
-    bandRows: 2,                               // cell rows per band
-    swapWindow: 100,                           // ms the bands take to flip, each way
+    bandRows: 1,                               // cell rows per band
+    swapWindow: 48,                            // ms the bands take to flip, each way
     ramp: 'field',                             // 'field' (the section under each cell), 0, 1, 2 (a section's ramp) or 'own'
     ownRamp: ['·', '-', '~', '≈', '▒', '▓'],
-    toneLow: 0.3, toneHigh: 0.9,               // the brightness span the ramp is spread over
-    boost: 0.35,                               // saturation and brightness lift, since glyphs on black read darker
-    routes: 'home',                            // 'home': the clip leaves with the hero; 'all': it stays on every route
+    toneLow: 0.39, toneHigh: 0.76,               // the brightness span the ramp is spread over
+    boost: 1.35,                               // saturation and brightness lift, since glyphs on black read darker
+    routes: 'all',                             // 'home': the clip leaves with the hero; 'all': it stays on every route
     dim: false                                 // with routes 'all', dim it while a page is open
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
