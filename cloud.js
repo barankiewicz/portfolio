@@ -485,7 +485,8 @@
     canvas.classList.toggle('dim', !!P.dim);
     canvas.classList.toggle('blend', blend);
     if (ready && blend === canvas.hasAttribute('data-cutout')){
-      if (blend){ canvas.removeAttribute('data-cutout'); canvas.removeAttribute('data-sweep'); }
+      /* the text mask field.js wrote for its sweep would close with it */
+      if (blend){ canvas.removeAttribute('data-cutout'); canvas.removeAttribute('data-sweep'); canvas.style.webkitMaskImage = canvas.style.maskImage = ''; }
       else { canvas.setAttribute('data-cutout', 'box'); canvas.setAttribute('data-sweep', ''); }
     }
     if (!blend && tinted){ tinted = null; field.tint(null); field.redraw(); }
