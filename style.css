@@ -103,6 +103,9 @@ body.page-open .hero{display:none}
   pointer-events:none;
 }
 
+/* the SVG that only holds filter definitions */
+.defs{position:absolute;width:0;height:0;overflow:hidden}
+
 /* === SKIP LINK === */
 .skip-link{
   position:absolute;left:-9999px;top:8px;z-index:200;
@@ -275,16 +278,15 @@ nav > *{pointer-events:auto}
 /* === PROJECTS & WORK ===
    A project is three strata: its plate, its head, its notes. The plate
    has no frame of its own: the hole is the frame. The screenshot shows
-   through a dither in the field's own three greys at 1px dots
-   pixel (script.js draws it), and resolves to the plain greyscale shot
+   through a dither in the field's own three greys at 1px dots (an SVG
+   filter, see index.html and script.js), and resolves to the plain greyscale shot
    while the link is hovered or focused. */
 .proj-plate{width:calc(var(--col) + var(--step));padding:16px 16px 14px calc(var(--nav-pad) * 1px)}
 .proj-shot-link{display:block;text-decoration:none;color:inherit}
 .proj-shot{position:relative;aspect-ratio:16/10;overflow:hidden;background:var(--bg)}
 .proj-shot img,.proj-dither{position:absolute;inset:0;display:block;width:100%;height:100%}
 .proj-shot img{object-fit:cover;object-position:top;filter:grayscale(1) contrast(1.06)}
-.proj-dither{image-rendering:pixelated;opacity:0;transition:opacity .45s cubic-bezier(.65,0,.35,1)}
-.proj-dither.ready{opacity:1}
+.proj-shot .proj-dither{filter:url(#field-dither);transition:opacity .45s cubic-bezier(.65,0,.35,1)}
 .proj-shot-link:hover .proj-dither,.proj-shot-link:focus-visible .proj-dither{opacity:0}
 .proj-img-placeholder{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
