@@ -17,12 +17,12 @@
   var SECTIONS = [
     { name: 'cells', pattern: 'cells', scale: 0.09, ramp: ['·', '∘', '○', '░', '▒', '▓'] },
     { name: 'waves', pattern: 'waves', scale: 0.1,  ramp: ['.', ':', '+', '░', '▒', '▓'] },
-    { name: 'grid',  pattern: 'cells', scale: 0.17, ramp: ['·', '─', '┼', '╬', '▒', '▓'] }
+    { name: 'binary', pattern: 'cells', scale: 0.17, ramp: ['.', ',', ';', '1', '0', '▒'] }
   ];
   var TONES = 6;
 
-  /* Pixel bitmaps, at most 6x8. Line and shade glyphs fill the whole cell
-   * so they join up with their neighbours; the rest sit in 5x7 and keep a
+  /* Pixel bitmaps, at most 6x8. Shade glyphs fill the whole cell so they
+   * join up with their neighbours; the rest sit in 5x7 and keep a
    * one-pixel gap. */
   var GLYPHS = {
     '.': ['.....', '.....', '.....', '.....', '.....', '.....', '..#..'],
@@ -31,9 +31,10 @@
     '·': ['.....', '.....', '.....', '..#..', '.....', '.....', '.....'],
     '∘': ['.....', '.....', '.###.', '.#.#.', '.###.', '.....', '.....'],
     '○': ['.....', '.###.', '#...#', '#...#', '#...#', '.###.', '.....'],
-    '─': ['......', '......', '......', '######', '......', '......', '......', '......'],
-    '┼': ['..#...', '..#...', '..#...', '######', '..#...', '..#...', '..#...', '..#...'],
-    '╬': ['.#.#..', '.#.#..', '##.###', '......', '##.###', '.#.#..', '.#.#..', '.#.#..'],
+    ',': ['.....', '.....', '.....', '.....', '.....', '..#..', '.#...'],
+    ';': ['.....', '.....', '..#..', '.....', '.....', '..#..', '.#...'],
+    '1': ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
+    '0': ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
     '░': ['#.#.#.', '......', '#.#.#.', '......', '#.#.#.', '......', '#.#.#.', '......'],
     '▒': ['#.#.#.', '.#.#.#', '#.#.#.', '.#.#.#', '#.#.#.', '.#.#.#', '#.#.#.', '.#.#.#'],
     '▓': ['.#.#.#', '######', '.#.#.#', '######', '.#.#.#', '######', '.#.#.#', '######']
@@ -53,22 +54,22 @@
 
   var THRESHOLD = 0.05;                        // below this a cell is empty
   var TONE_STEP = (1 - THRESHOLD) / TONES;
-  /* The field steps at 15fps, not at the display's rate. */
-  var TICK = 1 / 15;
+  /* The field steps at 12fps, not at the display's rate. */
+  var TICK = 1 / 12;
   /* Brightness slews at most this fast, so a cell can only move one tone
    * per tick (RISE * TICK < TONE_STEP). That is the no-yank guarantee:
    * every appearance starts at its section's faintest glyph. */
-  var RISE = 2.2;                              // per second, 0 to 1 in 450ms
+  var RISE = 1.8;                              // per second, 0 to 1 in 560ms
   var FALL = 1.6;                              // per second, 1 to 0 in 630ms
   var MAX_DT = TICK;
-  var PACE = 0.45;                             // pattern seconds per real second
+  var PACE = 0.8;                              // pattern seconds per real second
   var INTRO = 1.6;                             // whole field fades up on load
   var TILE = 6;                                // a tile is 6x6 base cells
   var SIZES = [1, 1.5, 2];                     // glyph sizes, in cells; each divides TILE
   var SIZE_FADE = 1.4;                         // size crossfade, seconds
   /* A 1x glyph changing reads as texture, but a larger glyph swapping
    * form in one tick is a pop, so large cells crossfade each change. */
-  var GLYPH_FADE = 0.18;
+  var GLYPH_FADE = 0.3;                        // about four ticks at 12fps
 
   function toneOf(v){
     if (v < THRESHOLD) return 0;
@@ -389,7 +390,7 @@
   }
 
   /* The display runs at its own rate; the field only steps and redraws
-   * once a tick is owed, so it moves on its own 15fps clock. */
+   * once a tick is owed, so it moves on its own 12fps clock. */
   function frame(now){
     owed += last ? now - last : TICK_MS;
     last = now;

@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 
 const { createField, SECTIONS, GLYPHS, CHARS, TONES, GREYS, TICK } = createRequire(import.meta.url)('../field.js');
 
-const STEP = TICK * 1000; // the renderer steps the field at 15fps
+const STEP = TICK * 1000; // the renderer steps the field at 12fps
 const ASPECT = 16 / 12;
 const SECOND = Math.round(1 / TICK);
 
@@ -39,7 +39,7 @@ test('two seeds give different patterns', () => {
   assert.ok(differ / a.glyph.length > 0.1, `only ${differ} cells differ`);
 });
 
-test('tone and grey never move more than one step in a tick, at 15, 30 or 60fps', () => {
+test('tone and grey never move more than one step in a tick, at 12, 30 or 60fps', () => {
   for (const dt of [STEP, 1000 / 30, 1000 / 60]) {
     const field = createField(7, 80, 45, ASPECT);
     let prev = snapshot(field);
