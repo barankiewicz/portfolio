@@ -31,7 +31,7 @@
     gain: 1.8,                                 // overall brightness
     contrast: 2.45,                            // around mid grey; above 1 sharpens
     patterns: ['waves', 'waves', 'cells'],
-    scales: [0.065, 0.26, 0.4],
+    scales: [0.065, 0.26, 0.13],
     ramps: [['·', '∘', '○', '░', '▒', '▓'], ['.', 'x', 'y', '#', '▞', '▓'], ['.', ',', '+', '*', '0', '1']],
     /* waveHigh below waveLow inverts the waves: the troughs glow. */
     waveSpeed: 0.9, ringWeight: 3, ringSpeed: 2.25, waveLow: 0.42, waveHigh: 0.07,
@@ -845,8 +845,14 @@
     }
   }
 
+  var fillShown = -1;
   function draw(){
     if (PARAMS.greys.join() !== atlasGreys) buildAtlas();
+    /* the regular holes' grey, for text that takes it (PORTFOLIO) */
+    if ((PARAMS.cutFill | 0) !== fillShown){
+      fillShown = PARAMS.cutFill | 0;
+      document.documentElement.style.setProperty('--cut-fill', 'rgb(' + fillShown + ',' + fillShown + ',' + fillShown + ')');
+    }
     if (PARAMS.pixel !== PX) fit();
     ctx.globalAlpha = 1;
     ctx.imageSmoothingEnabled = false;         // resizing the canvas resets it

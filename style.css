@@ -33,12 +33,12 @@
   --hero-y: 78;               /* 0 under the nav .. 100 bottom edge */
   --hero-align: center;
   --hero-top: 120px;          /* space kept clear for the nav */
-  --intro-size: 1.1;          /* rem */
+  --intro-size: .9;           /* rem */
   --intro-track: .13;         /* em */
   --intro-weight: 400;
-  --intro-color: var(--text-muted);
-  --intro-on-x: 4;            /* where PORTFOLIO sits on the cloud clip: 0 left edge .. 100 right edge */
-  --intro-on-y: 10;           /* 0 top edge .. 100 bottom edge */
+  --intro-color: var(--cut-fill, #090909);  /* the regular holes' grey (field.js sets --cut-fill from cutFill) */
+  --intro-on-x: 2;            /* where PORTFOLIO sits on the cloud clip: 0 left edge .. 100 right edge */
+  --intro-on-y: 97.5;         /* 0 top edge .. 100 bottom edge */
   --nav-size: 1.15;           /* rem */
   --nav-track: .23;           /* em */
   --nav-gap: 17;              /* px between links */
