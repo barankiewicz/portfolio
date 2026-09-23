@@ -224,6 +224,60 @@ test('dither mixes neighbouring glyphs in smooth gradients', () => {
   }
 });
 
+function withParams(values, fn) {
+  const saved = {};
+  for (const k of Object.keys(values)) saved[k] = PARAMS[k];
+  Object.assign(PARAMS, values);
+  try { return fn(); } finally { Object.assign(PARAMS, saved); }
+}
+
+test('small glyphs: the small amount draws 0.5x, but only at a glyph pixel of 2 or more', () => {
+  const share = () => { const f = createField(5, 120, 68, ASPECT); run(f, 5 * SECOND); return f.tiles.filter((t) => t.to === 0.5).length / f.tiles.length; };
+  withParams({ smallAmount: 0, midAmount: 0, bigAmount: 0 }, () => assert.equal(share(), 0));
+  withParams({ smallAmount: 1, midAmount: 0, bigAmount: 0, pixel: 2 }, () => assert.equal(share(), 1));
+  withParams({ smallAmount: 1, midAmount: 0, bigAmount: 0, pixel: 1 }, () => assert.equal(share(), 0));
+});
+
+test('small glyphs split each cell four ways, start from the cell, and never jump', () => {
+  withParams({ smallAmount: 0.5, midAmount: 0, bigAmount: 0 }, () => {
+    const field = createField(21, 160, 68, ASPECT);
+    const prev = new Map();
+    let started = 0;
+    let differing = 0;
+    let litCells = 0;
+    run(field, 30 * SECOND, STEP, () => {
+      field.tiles.forEach((t, ti) => {
+        if (!t.fine) return;
+        const p = prev.get(ti);
+        if (p && p.to !== 0.5 && t.to === 0.5) {
+          // The tile has just turned small: every quarter starts within one
+          // slew step of the cell it came from.
+          started++;
+          for (let k = 0; k < 144; k++) {
+            const x = t.x * 6 + Math.floor((k % 12) / 2), y = t.y * 6 + Math.floor(Math.floor(k / 12) / 2);
+            if (x >= field.cols || y >= field.rows) continue;
+            assert.ok(Math.abs(t.fine.level[k] - field.level[y * field.cols + x]) <= 0.3, `quarter ${k} of tile ${ti} started away from its cell`);
+          }
+        }
+        const showing = t.from === 0.5 || t.to === 0.5;
+        if (p && p.showing && showing) for (let k = 0; k < 144; k++) assert.ok(Math.abs(t.fine.tone[k] - p.tone[k]) <= 1, `small glyph ${k} of tile ${ti} jumped`);
+        prev.set(ti, { to: t.to, showing, tone: Uint8Array.from(t.fine.tone) });
+        if (t.to === 0.5 && t.from === 0.5) {
+          for (let c = 0; c < 36; c++) {
+            const sx = (c % 6) * 2, sy = Math.floor(c / 6) * 2, q = [sy * 12 + sx, sy * 12 + sx + 1, (sy + 1) * 12 + sx, (sy + 1) * 12 + sx + 1].map((k) => t.fine.tone[k]);
+            if (q.every((v) => v === 0)) continue;
+            litCells++;
+            if (new Set(q).size > 1) differing++;
+          }
+        }
+      });
+      field.tiles.forEach((t, ti) => { if (!t.fine) prev.set(ti, { to: t.to }); });
+    });
+    assert.ok(started > 0, 'no tile turned small');
+    assert.ok(differing / litCells > 0.1, `only ${differing} of ${litCells} lit small cells show more than one glyph`);
+  });
+});
+
 test('at least three glyph sizes are on screen at once', () => {
   const field = createField(5, 120, 68, ASPECT);
   run(field, 5 * SECOND);

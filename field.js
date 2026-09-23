@@ -10,10 +10,11 @@
   'use strict';
 
   var TONES = 6;
-  /* Glyphs come in 1x and two larger sizes picked from LARGE, laid out in
-   * tiles of 6x6 cells; every size divides the tile. */
+  /* Glyphs come in 1x, a small 0.5x, and two larger sizes picked from
+   * LARGE, laid out in tiles of 6x6 cells; every size divides the tile. */
   var TILE = 6;
   var LARGE = [1.5, 2, 3];
+  var SMALL = 0.5, FINE = TILE / SMALL;         // a small tile is 12x12 quarter cells
   var INTRO = 1.6;                             // whole field fades up on load
 
   /* Every tunable value, read live on each tick so the tuning page can
@@ -39,6 +40,7 @@
     pixel: 2,                                  // CSS px per glyph pixel; a cell is 6x8 glyph pixels
     midSize: 1.5, bigSize: 2,                  // the two larger sizes, from LARGE
     midAmount: 0.12, bigAmount: 0.34,          // how much of the field draws at each
+    smallAmount: 0,                            // how much draws at 0.5x; needs a glyph pixel of 2 or more
     sizeScale: 0.3, sizeSpeed: 0.035,          // size patches: frequency, and how fast they change
     sizeFade: 1.4, glyphFade: 0.3,
     curve: 1,                                  // below 1 favours dense glyphs, above 1 sparse ones
@@ -225,6 +227,9 @@
       var bigAt = 1 - P.bigAmount, midAt = bigAt - P.midAmount;
       if (n > (tile.to === P.bigSize ? bigAt - margin : bigAt + margin)) return P.bigSize;
       if (n > (tile.to === 1 ? midAt + margin : midAt - margin)) return P.midSize;
+      /* Below 2px a quarter-size glyph would need half-pixels and blur. */
+      var smallAt = P.pixel >= 2 ? P.smallAmount : 0;
+      if (n < (tile.to === SMALL ? smallAt + margin : smallAt - margin)) return SMALL;
       return 1;
     }
     function buildTiles(old){
@@ -328,13 +333,46 @@
       for (var ti = 0; ti < f.tiles.length; ti++){
         var t = f.tiles[ti];
         stepLargeCells(t, dt);
+        if (t.from === SMALL || t.to === SMALL) stepFine(t, rise, fall, gain);
         if (t.from !== t.to){
           t.mix = easeInOutSine(Math.min(1, (f.time - t.t0) / (P.sizeFade * P.pace)));
           if (f.time - t.t0 >= P.sizeFade * P.pace){ t.from = t.to; t.mix = 1; }
           continue;
         }
         var want = sizeTarget(t);
-        if (want !== t.to){ t.from = t.to; t.to = want; t.t0 = f.time; t.mix = 0; }
+        if (want !== t.to){
+          if (want === SMALL) seedFine(t);
+          t.from = t.to; t.to = want; t.t0 = f.time; t.mix = 0;
+        }
+      }
+    }
+
+    /* A small tile splits every cell into four quarters, each with its
+     * own brightness sampled from the pattern at its own corner, so the
+     * four glyphs differ. The quarters start from their cell's brightness
+     * so the switch does not pop, and slew under the same cap. */
+    function seedFine(t){
+      if (!t.fine) t.fine = { level: new Float32Array(FINE * FINE), tone: new Uint8Array(FINE * FINE), grey: new Uint8Array(FINE * FINE), glyph: new Uint8Array(FINE * FINE) };
+      for (var k = 0; k < FINE * FINE; k++){
+        var x = t.x * TILE + ((k % FINE) >> 1), y = t.y * TILE + (Math.floor(k / FINE) >> 1);
+        if (x >= f.cols || y >= f.rows) continue;
+        var i = y * f.cols + x;
+        t.fine.level[k] = f.level[i]; t.fine.tone[k] = f.tone[i]; t.fine.grey[k] = f.grey[i]; t.fine.glyph[k] = f.glyph[i];
+      }
+    }
+    function stepFine(t, rise, fall, gain){
+      if (!t.fine) seedFine(t);
+      var q = t.fine;
+      for (var k = 0; k < FINE * FINE; k++){
+        var sx = k % FINE, sy = Math.floor(k / FINE);
+        var x = t.x * TILE + (sx >> 1), y = t.y * TILE + (sy >> 1);
+        if (x >= f.cols || y >= f.rows) continue;
+        var sec = f.section[y * f.cols + x];
+        var target = patternAt(sec, x + (sx & 1) * SMALL, y + (sy & 1) * SMALL) * gain, v = q.level[k];
+        if (target > v) v = Math.min(target, v + rise);
+        else v = Math.max(target, v - fall);
+        var tone = toneOf(v);
+        q.level[k] = v; q.tone[k] = tone; q.grey[k] = greyOf(tone); q.glyph[k] = glyphFor(sec, tone);
       }
     }
 
@@ -369,7 +407,7 @@
     return f;
   }
 
-  var api = { createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE };
+  var api = { createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER === */
@@ -434,6 +472,12 @@
           var i = y * cols + x;
           blit(1, field.glyph[i], field.grey[i], x, y, alpha);
         }
+      return;
+    }
+    if (s === SMALL){
+      if (!t.fine) return;
+      for (var q = 0; q < FINE * FINE; q++)
+        blit(SMALL, t.fine.glyph[q], t.fine.grey[q], x0 + (q % FINE) * SMALL, y0 + Math.floor(q / FINE) * SMALL, alpha);
       return;
     }
     var n = TILE / s;
