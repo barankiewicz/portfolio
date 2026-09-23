@@ -208,7 +208,7 @@
     var f = {
       seed: seed | 0, cols: 0, rows: 0, aspect: aspect || 1,
       real: 0, time: 0,
-      level: null, tone: null, grey: null, glyph: null, section: null, cut: null, fill: null,
+      level: null, tone: null, grey: null, glyph: null, section: null, cut: null, soft: null, fill: null,
       tiles: [], waves: [makeWaves(rnd), makeWaves(rnd), makeWaves(rnd)],
       step: step, resize: resize, setCutouts: setCutouts
     };
@@ -310,7 +310,7 @@
       }
       f.cols = c; f.rows = r;
       f.section = new Uint8Array(n); f.shape = new Float32Array(n); f.weight = new Float32Array(n);
-      f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph; f.fill = fill;
+      f.level = level; f.tone = tone; f.grey = grey; f.glyph = glyph; f.fill = fill; f.soft = new Uint8Array(n);
       buildTiles(f.tiles);
       cutHoles();
     }
@@ -322,7 +322,11 @@
      * everything under a hole is emptied on the call, not on the next
      * tick. Uncovering is not special: the cells start from empty and
      * rise under the usual one-tone-per-tick slew. Only the hole's fill
-     * eases, in step, since a grey panel popping in would be a yank. */
+     * eases, in step, since a grey panel popping in would be a yank.
+     * A box marked soft is a hole on its way: nothing is emptied on the
+     * call, its cells fall to empty under the slew and its large glyphs
+     * crossfade out, so an opening hole erodes the field instead of
+     * punching it. A hard box wins where the two overlap. */
     function setCutouts(list){
       cutouts = list || [];
       cutHoles();
@@ -335,13 +339,15 @@
       return Math.floor(hash3(f.seed, along, edge, 20 + side) * (Math.floor(rag) + 1));
     }
     function cutHoles(){
-      var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows);
+      var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows), mask;
+      f.soft = new Uint8Array(cols * rows);
       function fill(x0, y0, x1, y1){
         x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(cols, x1); y1 = Math.min(rows, y1);
-        for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) cut[y * cols + x] = 1;
+        for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) mask[y * cols + x] = 1;
       }
       for (var k = 0; k < cutouts.length; k++){
         var r = cutouts[k];
+        mask = r.soft ? f.soft : cut;
         var x0 = Math.floor(r.x0 - P.cutPadL), x1 = Math.ceil(r.x1 + P.cutPadR);
         var y0 = Math.floor(r.y0 - P.cutPadT), y1 = Math.ceil(r.y1 + P.cutPadB);
         if (x1 <= 0 || y1 <= 0 || x0 >= cols || y0 >= rows) continue;
@@ -351,7 +357,7 @@
         for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1), y + 1); }
         for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3)); }
       }
-      for (var i = 0; i < cut.length; i++) if (cut[i]){ f.level[i] = 0; f.tone[i] = 0; f.grey[i] = 0; f.glyph[i] = 0; }
+      for (var i = 0; i < cut.length; i++) if (cut[i]){ f.soft[i] = 0; f.level[i] = 0; f.tone[i] = 0; f.grey[i] = 0; f.glyph[i] = 0; }
       for (var ti = 0; ti < f.tiles.length; ti++){
         var t = f.tiles[ti];
         if (t.fine) for (var q = 0; q < FINE * FINE; q++){
@@ -393,11 +399,11 @@
       for (var y = 0; y < f.rows; y++){
         for (var x = 0; x < f.cols; x++){
           var i = y * f.cols + x, sec = f.section[i];
-          var want = f.cut[i] ? gain : 0;
+          var want = f.cut[i] || f.soft[i] ? gain : 0;
           f.fill[i] = want > f.fill[i] ? Math.min(want, f.fill[i] + fillStep) : Math.max(want, f.fill[i] - fillStep);
           f.shape[i] = shapeAt(sec, x, y);
           f.weight[i] = weightAt(x, y) * gain;
-          var target = Math.min(1, f.shape[i] * f.weight[i]), v = f.level[i];
+          var target = f.soft[i] ? 0 : Math.min(1, f.shape[i] * f.weight[i]), v = f.level[i];
           if (f.cut[i]) v = 0;
           else if (target > v) v = Math.min(target, v + rise);
           else v = Math.max(target, v - fall);
@@ -449,7 +455,7 @@
         var i = y * f.cols + x, sec = f.section[i];
         /* The top-left quarter sits where the cell itself was sampled. */
         var shape = (sx & 1) || (sy & 1) ? shapeAt(sec, x + (sx & 1) * SMALL, y + (sy & 1) * SMALL) : f.shape[i];
-        var target = Math.min(1, shape * f.weight[i]), v = q.level[k];
+        var target = f.soft[i] ? 0 : Math.min(1, shape * f.weight[i]), v = q.level[k];
         if (f.cut[i]) v = 0;
         else if (target > v) v = Math.min(target, v + rise);
         else v = Math.max(target, v - fall);
@@ -467,10 +473,15 @@
         var s = LARGE[si], n = TILE / s;
         for (var k = 0; k < n * n; k++){
           var c = t.cells[s][k];
-          var x0 = t.x * TILE + (k % n) * s, y0 = t.y * TILE + Math.floor(k / n) * s, v = 0;
+          var x0 = t.x * TILE + (k % n) * s, y0 = t.y * TILE + Math.floor(k / n) * s, v = 0, soft = false;
           /* A 1.5x glyph straddles cells, so take every cell it overlaps. */
           for (var y = Math.floor(y0); y < y0 + s && y < f.rows; y++)
-            for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++) v = Math.max(v, f.level[y * f.cols + x]);
+            for (var x = Math.floor(x0); x < x0 + s && x < f.cols; x++){
+              var j = y * f.cols + x;
+              if (f.soft[j]) soft = true;
+              v = Math.max(v, f.level[j]);
+            }
+          if (soft) v = 0;
           if (inCut(x0, y0, s)){ c.glyph = c.fromGlyph = c.grey = c.fromGrey = 0; c.u = 1; continue; }
           c.u = Math.min(1, c.u + dt / PARAMS.glyphFade);
           var tone = toneOf(v), gr = greyOf(tone);

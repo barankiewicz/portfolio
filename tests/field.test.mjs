@@ -534,3 +534,46 @@ test('the fill rises with the field on load instead of starting at full', () => 
     assert.ok(field.fill[7 * 30 + 8] < 0.2, `fill at ${field.fill[7 * 30 + 8]} after one tick`);
   });
 });
+
+// Glyphs painted over any cell of a mask.
+function paintedIn(field, mask) {
+  return painted(field).filter(([s, x, y]) => {
+    for (let cy = Math.floor(y); cy < y + s && cy < field.rows; cy++)
+      for (let cx = Math.floor(x); cx < x + s && cx < field.cols; cx++)
+        if (mask[cy * field.cols + cx]) return true;
+    return false;
+  });
+}
+
+test('a soft cutout empties under the slew, one tone per tick, instead of all at once', () => {
+  withParams({ bigAmount: 0.3, midAmount: 0.2, smallAmount: 0.3, ...holeParams(0, 0, 0) }, () => {
+    const field = createField(12, 96, 54, ASPECT);
+    run(field, 8 * SECOND);
+    field.setCutouts([{ x0: 10, y0: 10, x1: 80, y1: 40, soft: true }]);
+    assert.equal(cutCells(field).length, 0, 'a soft cutout counted as hard');
+    let lit = 0;
+    for (let y = 10; y < 40; y++) for (let x = 10; x < 80; x++) if (field.tone[y * 96 + x]) lit++;
+    assert.ok(lit > 100, `only ${lit} cells lit: the soft hole emptied on the call`);
+    let prev = Uint8Array.from(field.tone);
+    run(field, SECOND, STEP, () => {
+      for (let i = 0; i < field.tone.length; i++) assert.ok(prev[i] - field.tone[i] <= 1, `cell ${i} dropped more than a tone`);
+      prev = Uint8Array.from(field.tone);
+    });
+    assert.deepEqual(paintedIn(field, field.soft), [], 'glyphs still painted in a settled soft hole');
+    run(field, 3 * SECOND, STEP, () => assert.deepEqual(paintedIn(field, field.soft), []));
+  });
+});
+
+test('a hard cutout wins where it overlaps a soft one, and both get the fill', () => {
+  withParams({ ...holeParams(0, 0, 0), cutFade: 0.1 }, () => {
+    const field = createField(4, 40, 20, ASPECT);
+    run(field, 3 * SECOND);
+    field.setCutouts([{ x0: 5, y0: 5, x1: 30, y1: 12, soft: true }, { x0: 5, y0: 5, x1: 12, y1: 12 }]);
+    const hard = 6 * 40 + 6, soft = 6 * 40 + 20;
+    assert.ok(field.cut[hard] && !field.soft[hard]);
+    assert.ok(!field.cut[soft] && field.soft[soft]);
+    run(field, SECOND);
+    assert.equal(field.fill[hard], 1);
+    assert.equal(field.fill[soft], 1);
+  });
+});
