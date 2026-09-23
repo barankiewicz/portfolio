@@ -216,7 +216,8 @@
       real: 0, time: 0,
       level: null, tone: null, grey: null, glyph: null, section: null, cut: null, soft: null, fill: null,
       tiles: [], waves: [makeWaves(rnd), makeWaves(rnd), makeWaves(rnd)],
-      step: step, resize: resize, setCutouts: setCutouts, softTick: softTick
+      step: step, resize: resize, setCutouts: setCutouts, softTick: softTick,
+      fillOf: function(i){ var g = f.fillGrey[i]; return g < 0 ? PARAMS.cutFill | 0 : g; }
     };
     var rampGlyphs = [[], [], []], toneStep = 1, cutouts = [];
 
@@ -357,7 +358,8 @@
     function cutHoles(){
       var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows), mask;
       f.soft = new Uint8Array(cols * rows);
-      var grey = f.fillGrey = new Uint8Array(cols * rows).fill(P.cutFill);
+      /* a hole's own fill grey, or -1 for the global cutFill, read live */
+      var grey = f.fillGrey = new Int16Array(cols * rows).fill(-1);
       var pads = [P.cutPadL, P.cutPadR, P.cutPadT, P.cutPadB], rags = [P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB];
       function fill(x0, y0, x1, y1){
         x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(cols, x1); y1 = Math.min(rows, y1);
@@ -845,7 +847,7 @@
      * over its fading fill. */
     var cols = field.cols, lastGrey = -1;
     for (var c = 0; c < field.fill.length; c++){
-      var g = field.fillGrey[c];
+      var g = field.fillOf(c);
       if (field.fill[c] <= 0 || !g) continue;
       if (g !== lastGrey){ ctx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')'; lastGrey = g; }
       var cx = c % cols, cy = (c - cx) / cols;

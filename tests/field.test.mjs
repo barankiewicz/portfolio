@@ -684,8 +684,8 @@ test('a box can carry its own pad, rag and fill, which win over the globals for 
     assert.deepEqual(own, want, 'own pad left 1, right 2, top 1, bottom 0, and no rag');
     const other = cutCells(field).filter(([, y]) => y >= 10);
     assert.ok(other.some(([x]) => x >= 32 + 7), 'the other box lost the global right pad');
-    assert.equal(field.fillGrey[5 * 40 + 12], 90);
-    assert.equal(field.fillGrey[12 * 40 + 31], 31);
+    assert.equal(field.fillOf(5 * 40 + 12), 90);
+    assert.equal(field.fillOf(12 * 40 + 31), 31);
   });
 });
 
@@ -696,5 +696,15 @@ test("a box's own rag sticks out on its own sides only", () => {
     const cells = cutCells(field);
     assert.ok(cells.some(([, y]) => y >= 16), 'bottom edge is not ragged');
     for (const [x, y] of cells) assert.ok(x >= 20 && x < 40 && y >= 10 && y < 19, `${x},${y} ragged on a side with no rag`);
+  });
+});
+
+test("the global fill grey applies live, without the holes being cut again; a hole's own grey stays", () => {
+  withParams({ ...holeParams(0, 0, 0), cutFill: 31 }, () => {
+    const field = createField(3, 40, 20, ASPECT);
+    field.setCutouts([{ x0: 10, y0: 5, x1: 14, y1: 7, fill: 90 }, { x0: 30, y0: 12, x1: 32, y1: 13 }]);
+    PARAMS.cutFill = 80;
+    assert.equal(field.fillOf(12 * 40 + 31), 80);
+    assert.equal(field.fillOf(5 * 40 + 12), 90);
   });
 });
