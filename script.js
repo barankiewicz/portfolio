@@ -83,7 +83,9 @@
       vis[j].classList.remove('open');
     }
     shown = null;
-    var shut = parseFloat(getComputedStyle(root).getPropertyValue('--shut')) * 1000 || 140, tail = (vis.length - 1) * 30;
+    /* the slowest block sets how long the old route stays on screen */
+    var shut = 140, tail = (vis.length - 1) * 30;
+    for (var s = 0; s < vis.length; s++) shut = Math.max(shut, parseFloat(getComputedStyle(vis[s]).getPropertyValue('--shut')) * 1000 || 0);
     if (!vis.length){ show(to); return; }
     from.classList.add('closing');
     clearTimeout(from.closingTimer);

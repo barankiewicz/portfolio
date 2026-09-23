@@ -220,11 +220,14 @@ nav > *{pointer-events:auto}
    The one thing in colour (PRODUCT.md). A canvas cloud.js draws, in its
    own hole; its edges sit on the field's cell grid, so the ASCII take's
    glyphs line up with the field round it. Hidden until its first frame
-   can be drawn, then it sweeps open with the hero and fades up. */
+   can be drawn (cloud.js adds data-sweep then), then it sweeps open with
+   the hero and fades up with it, and on the way out it does both again,
+   slower than text (its own --shut), since a wide block of colour
+   wiped in 140ms reads as a cut. */
 .cloud{
   --w:min(calc(var(--cloud-vw) * 1vw), calc(var(--cloud-max) * 1px));
   --r:calc(100vw - var(--edge) - var(--cloud-x) * 1px);
-  position:fixed;z-index:3;display:block;
+  position:fixed;z-index:1;display:block;
   left:calc(var(--r) - var(--w));top:calc(var(--cloud-y) * 1px);
   width:var(--w);height:calc(var(--w) * 9 / 16);
   left:round(down, var(--r) - var(--w), var(--cell-w));
@@ -233,10 +236,24 @@ nav > *{pointer-events:auto}
   height:round(up, var(--w) * 9 / 16, var(--cell-h));
   pointer-events:none;
   opacity:0;
-  transition:opacity .8s cubic-bezier(.37,0,.63,1);
 }
-.cloud.ready{opacity:1}
-body.page-open .cloud.ready.dim{opacity:.35}
+.js .cloud[data-sweep]{
+  --shut:.4s;
+  transition:
+    --txt var(--shut) linear calc(var(--i, 0) * 30ms),
+    --cut var(--shut) linear calc(var(--i, 0) * 30ms + var(--shut) * .2),
+    opacity var(--shut) cubic-bezier(.37,0,.63,1);
+}
+.js .cloud[data-sweep].open{
+  opacity:1;
+  transition:
+    --cut var(--sweep) linear calc(var(--i, 0) * var(--stagger)),
+    --txt var(--sweep) linear calc(var(--i, 0) * var(--stagger) + var(--lag)),
+    opacity .8s cubic-bezier(.37,0,.63,1);
+}
+/* on every route it sits over the pages, which scroll under its hole */
+.cloud.everywhere{z-index:3}
+body.page-open .cloud.everywhere.dim.open{opacity:.35}
 
 /* === STRATA ===
    Every content block is its own hole in the field (data-cutout in the
@@ -448,7 +465,7 @@ footer{
    Holes and text are simply there; routes swap with no sweep. */
 @media (prefers-reduced-motion: reduce){
   .js [data-sweep]{--cut:1;--txt:1;transition:none;-webkit-mask:none;mask:none}
-  .js .nav-left,.js .hero-content,.proj-dither,.cloud{transition:none}
+  .js .nav-left,.js .hero-content,.proj-dither,.js .cloud[data-sweep],.js .cloud[data-sweep].open{transition:none}
 }
 
 /* === RESPONSIVE === */

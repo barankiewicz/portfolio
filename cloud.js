@@ -305,7 +305,8 @@
   function place(){
     var P = PARAMS, parent = P.routes === 'all' ? away : home;
     if (canvas.parentNode !== parent) parent.insertBefore(canvas, parent === away ? away.firstChild : null);
-    canvas.classList.toggle('dim', P.routes === 'all' && !!P.dim);
+    canvas.classList.toggle('everywhere', P.routes === 'all');
+    canvas.classList.toggle('dim', !!P.dim);
     if (P.routes === 'all' && ready) canvas.classList.add('open');
   }
 
