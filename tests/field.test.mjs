@@ -666,3 +666,30 @@ test('a tick and a soft fade step in the same frame still move a soft cell only 
     for (let i = 0; i < field.tone.length; i++) assert.ok(prev[i] - field.tone[i] <= 1, `cell ${i} went ${prev[i]} to ${field.tone[i]} in one frame`);
   });
 });
+
+test('a box can carry its own pad, rag and fill, which win over the globals for that box only', () => {
+  withParams({ ...holeParams(0, 0, 0), cutPadR: 8, cutRagL: 4, cutFill: 31 }, () => {
+    const field = createField(3, 40, 20, ASPECT);
+    field.setCutouts([
+      { x0: 10, y0: 5, x1: 14, y1: 7, pad: [1, 2, 1, 0], rag: [0, 0, 0, 0], fill: 90 },
+      { x0: 30, y0: 12, x1: 32, y1: 13 }
+    ]);
+    const own = cutCells(field).filter(([, y]) => y < 10), want = [];
+    for (let y = 4; y <= 6; y++) for (let x = 9; x <= 15; x++) want.push([x, y]);
+    assert.deepEqual(own, want, 'own pad left 1, right 2, top 1, bottom 0, and no rag');
+    const other = cutCells(field).filter(([, y]) => y >= 10);
+    assert.ok(other.some(([x]) => x >= 32 + 7), 'the other box lost the global right pad');
+    assert.equal(field.fillGrey[5 * 40 + 12], 90);
+    assert.equal(field.fillGrey[12 * 40 + 31], 31);
+  });
+});
+
+test("a box's own rag sticks out on its own sides only", () => {
+  withParams({ ...holeParams(0, 0, 0) }, () => {
+    const field = createField(9, 60, 30, ASPECT);
+    field.setCutouts([{ x0: 20, y0: 10, x1: 40, y1: 16, pad: [0, 0, 0, 0], rag: [0, 0, 0, 3] }]);
+    const cells = cutCells(field);
+    assert.ok(cells.some(([, y]) => y >= 16), 'bottom edge is not ragged');
+    for (const [x, y] of cells) assert.ok(x >= 20 && x < 40 && y >= 10 && y < 19, `${x},${y} ragged on a side with no rag`);
+  });
+});

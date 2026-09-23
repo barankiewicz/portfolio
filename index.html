@@ -61,6 +61,10 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
       <p class="hero-intro" data-cutout="text" data-sweep>PORTFOLIO</p>
       <h1 class="hero-name" data-cutout="text" data-sweep>Alicja&nbsp;Barankiewicz</h1>
     </div>
+    <!-- The cloud clip (cloud.js): decorative, no controls. It takes its
+         hole (data-cutout, data-sweep) only once its first frame can be
+         drawn; the hole's pad and rag are in cells, left right top bottom. -->
+    <canvas class="cloud" aria-hidden="true" data-src="hero-compressed.mp4" data-cells="cloud-cells.bin" data-cutout-pad="0 0 0 0" data-cutout-rag="1 0 0 1" data-cutout-fill="255"></canvas>
   </section>
 </header>
 
@@ -429,6 +433,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 <script src="script.js"></script>
 <script src="field.js"></script>
+<script src="cloud.js"></script>
 
 </body>
 </html>

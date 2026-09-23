@@ -6,6 +6,7 @@
   var hero = document.querySelector('.hero');
   var navLeft = document.querySelector('.nav-left');
   var firstLink = document.querySelector('.nav-links a');
+  var heroContent = document.querySelector('.hero-content');
 
   /* === PAGE BOX ===
    * A page's content starts under the nav (everything above --page-top
@@ -14,8 +15,11 @@
   function placePages(){
     root.style.setProperty('--page-top', Math.ceil(navLeft.getBoundingClientRect().bottom + 8) + 'px');
     root.style.setProperty('--rail-x', Math.round(firstLink.getBoundingClientRect().left) + 'px');
+    /* the cloud clip stays above the name; kept while a page hides the hero */
+    var h = heroContent.getBoundingClientRect();
+    if (h.height > 0) root.style.setProperty('--hero-top-px', Math.floor(h.top) + 'px');
   }
-  if (window.ResizeObserver) new ResizeObserver(placePages).observe(navLeft);
+  if (window.ResizeObserver){ new ResizeObserver(placePages).observe(navLeft); new ResizeObserver(placePages).observe(heroContent); }
   window.addEventListener('resize', placePages);
   placePages();
 
@@ -83,7 +87,9 @@
       vis[j].classList.remove('open');
     }
     shown = null;
-    var shut = parseFloat(getComputedStyle(root).getPropertyValue('--shut')) * 1000 || 140, tail = (vis.length - 1) * 30;
+    /* the slowest block sets how long the old route stays on screen */
+    var shut = 140, tail = (vis.length - 1) * 30;
+    for (var s = 0; s < vis.length; s++) shut = Math.max(shut, parseFloat(getComputedStyle(vis[s]).getPropertyValue('--shut')) * 1000 || 0);
     if (!vis.length){ show(to); return; }
     from.classList.add('closing');
     clearTimeout(from.closingTimer);

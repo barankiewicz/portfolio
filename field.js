@@ -339,7 +339,10 @@
      * call, its cells fall to empty under the slew and its large glyphs
      * crossfade out, so an opening hole erodes the field instead of
      * punching it. A hard box wins where the two overlap. A box may
-     * carry its own padR, which a hole sweeping open grows from zero. */
+     * carry its own padR, which a hole sweeping open grows from zero.
+     * A box may also carry its own pad and rag ([left, right, top,
+     * bottom] in cells) and fill grey, for a hole that is not a text
+     * hole (the cloud clip's); padR still wins on the right. */
     function setCutouts(list){
       cutouts = list || [];
       cutHoles();
@@ -347,28 +350,31 @@
     /* How far one row or column of an edge sticks out: along is the row
      * or column, edge is where that edge sits, side is left, right, top
      * or bottom. */
-    function ragAt(along, edge, side){
-      var P = PARAMS, rag = [P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB][side];
+    function ragAt(along, edge, side, rags){
+      var rag = rags[side];
       return Math.floor(hash3(f.seed, along, edge, 20 + side) * (Math.floor(rag) + 1));
     }
     function cutHoles(){
       var P = PARAMS, cols = f.cols, rows = f.rows, cut = f.cut = new Uint8Array(cols * rows), mask;
       f.soft = new Uint8Array(cols * rows);
+      var grey = f.fillGrey = new Uint8Array(cols * rows).fill(P.cutFill);
+      var pads = [P.cutPadL, P.cutPadR, P.cutPadT, P.cutPadB], rags = [P.cutRagL, P.cutRagR, P.cutRagT, P.cutRagB];
       function fill(x0, y0, x1, y1){
         x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(cols, x1); y1 = Math.min(rows, y1);
-        for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) mask[y * cols + x] = 1;
+        for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++){ mask[y * cols + x] = 1; if (own != null) grey[y * cols + x] = own; }
       }
       for (var k = 0; k < cutouts.length; k++){
         var r = cutouts[k];
         mask = r.soft ? f.soft : cut;
-        var x0 = Math.floor(r.x0 - P.cutPadL), x1 = Math.ceil(r.x1 + (r.padR != null ? r.padR : P.cutPadR));
-        var y0 = Math.floor(r.y0 - P.cutPadT), y1 = Math.ceil(r.y1 + P.cutPadB);
+        var pad = r.pad || pads, rag = r.rag || rags, own = r.fill;
+        var x0 = Math.floor(r.x0 - pad[0]), x1 = Math.ceil(r.x1 + (r.padR != null ? r.padR : pad[1]));
+        var y0 = Math.floor(r.y0 - pad[2]), y1 = Math.ceil(r.y1 + pad[3]);
         if (x1 <= 0 || y1 <= 0 || x0 >= cols || y0 >= rows) continue;
         fill(x0, y0, x1, y1);
         /* Rag is hashed from the edge's own position, so a box that has
          * not moved keeps the same outline. */
-        for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1), y + 1); }
-        for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3)); }
+        for (var y = y0; y < y1; y++){ fill(x0 - ragAt(y, x0, 0, rag), y, x0, y + 1); fill(x1, y, x1 + ragAt(y, x1, 1, rag), y + 1); }
+        for (var x = x0; x < x1; x++){ fill(x, y0 - ragAt(x, y0, 2, rag), x + 1, y0); fill(x, y1, x + 1, y1 + ragAt(x, y1, 3, rag)); }
       }
       for (var i = 0; i < cut.length; i++) if (cut[i]){ f.soft[i] = 0; f.level[i] = 0; f.tone[i] = 0; f.grey[i] = 0; f.glyph[i] = 0; }
       for (var ti = 0; ti < f.tiles.length; ti++){
@@ -602,7 +608,7 @@
     return p * (2 - p);
   }
 
-  var api = { sweepBands: sweepBands, bandAt: bandAt, createField: createField, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
+  var api = { sweepBands: sweepBands, bandAt: bandAt, createField: createField, mulberry32: mulberry32, PARAMS: PARAMS, DEFAULTS: DEFAULTS, GLYPHS: GLYPHS, CHARS: CHARS, TONES: TONES, LARGE: LARGE, SMALL: SMALL };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER === */
@@ -613,6 +619,7 @@
   /* A cell is GWxGH glyph pixels of PARAMS.pixel CSS px each; larger sizes
    * are the same bitmap with chunkier pixels. */
   var GW = 6, GH = 8, PX = 0, CW = 0, CH = 0;
+  var ticks = [];                              // called after each field tick (the cloud clip's ASCII take)
   var atlas = null, atlasGreys = '', dpr = 1, field = null, raf = 0, last = 0, owed = 0, cutKey = '';
 
   /* One row of glyphs per grey, drawn pixel by pixel: hard edges, no
@@ -723,6 +730,16 @@
     }
     return c;
   }
+  /* A hole's own pad, rag and fill, from data-cutout-pad / -rag ("left
+   * right top bottom", in cells) and data-cutout-fill (a grey), for the
+   * one hole that is not dressed like the text holes: the cloud clip. */
+  function ownHole(el){
+    var o = {}, pad = el.getAttribute('data-cutout-pad'), rag = el.getAttribute('data-cutout-rag'), fill = el.getAttribute('data-cutout-fill');
+    if (pad) o.pad = pad.trim().split(/\s+/).map(Number);
+    if (rag) o.rag = rag.trim().split(/\s+/).map(Number);
+    if (fill) o.fill = +fill;
+    return o;
+  }
   function measure(){
     var els = document.querySelectorAll('[data-cutout]'), out = [], pad = PARAMS.cutPadR * CW;
     clips.clear();
@@ -733,6 +750,7 @@
       if (mode === 'box') rects = [boxOf(el)];
       else { range.selectNodeContents(el); rects = mode === 'block' ? [range.getBoundingClientRect()] : range.getClientRects(); }
       if (!rects.length || !(rects[0].width > 0)) continue;
+      var own = ownHole(el), padPx = own.pad ? own.pad[1] * CW : pad;
       var clip = el.closest('[data-cutout-clip]'), c = clip && clipBox(clip);
       var sweep = null, e, cut = 1, txt = 1;
       if (el.hasAttribute('data-sweep')){
@@ -747,10 +765,10 @@
         var r = rects[k], x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom;
         if (c){ x0 = Math.max(x0, c.left); y0 = Math.max(y0, c.top); x1 = Math.min(x1, c.right); y1 = Math.min(y1, c.bottom); }
         if (!(x1 > x0 && y1 > y0)) continue;
-        if (!sweep){ out.push({ x0: x0 / CW, y0: y0 / CH, x1: x1 / CW, y1: y1 / CH }); continue; }
+        if (!sweep){ out.push(Object.assign({ x0: x0 / CW, y0: y0 / CH, x1: x1 / CW, y1: y1 / CH }, own)); continue; }
         /* Each band's hole, padding included, stops at that band's front:
          * hard as far as --txt has opened it, soft on to --cut. */
-        var top = e.top - sweep.phase, span = e.width + pad;
+        var top = e.top - sweep.phase, span = e.width + padPx;
         for (var b = 0; b < sweep.bands.length; b++){
           var by0 = Math.max(y0, top + b * CH), by1 = Math.min(y1, top + (b + 1) * CH);
           if (by1 <= by0) continue;
@@ -758,10 +776,10 @@
           for (var f = 0; f < 2; f++){
             var o = f ? soft : hard;
             if (f && soft <= hard) break;
-            var edge = Math.min(x1 + pad, e.left + span * o);
+            var edge = Math.min(x1 + padPx, e.left + span * o);
             if (edge <= x0) continue;
             var right = Math.min(x1, edge);
-            out.push({ x0: x0 / CW, y0: by0 / CH, x1: right / CW, y1: by1 / CH, padR: (edge - right) / CW, soft: !!f });
+            out.push(Object.assign({ x0: x0 / CW, y0: by0 / CH, x1: right / CW, y1: by1 / CH, padR: (edge - right) / CW, soft: !!f }, own));
           }
         }
       }
@@ -825,18 +843,17 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     /* Hole fills go under the glyphs, so a closing hole's glyphs fade in
      * over its fading fill. */
-    if (PARAMS.cutFill > 0){
-      var g = PARAMS.cutFill | 0, cols = field.cols;
-      ctx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
-      for (var c = 0; c < field.fill.length; c++){
-        if (field.fill[c] <= 0) continue;
-        var cx = c % cols, cy = (c - cx) / cols;
-        var x0 = Math.round(cx * CW * dpr), y0 = Math.round(cy * CH * dpr);
-        ctx.globalAlpha = field.fill[c];
-        ctx.fillRect(x0, y0, Math.round((cx + 1) * CW * dpr) - x0, Math.round((cy + 1) * CH * dpr) - y0);
-      }
-      ctx.globalAlpha = 1;
+    var cols = field.cols, lastGrey = -1;
+    for (var c = 0; c < field.fill.length; c++){
+      var g = field.fillGrey[c];
+      if (field.fill[c] <= 0 || !g) continue;
+      if (g !== lastGrey){ ctx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')'; lastGrey = g; }
+      var cx = c % cols, cy = (c - cx) / cols;
+      var x0 = Math.round(cx * CW * dpr), y0 = Math.round(cy * CH * dpr);
+      ctx.globalAlpha = field.fill[c];
+      ctx.fillRect(x0, y0, Math.round((cx + 1) * CW * dpr) - x0, Math.round((cy + 1) * CH * dpr) - y0);
     }
+    ctx.globalAlpha = 1;
     for (var i = 0; i < field.tiles.length; i++){
       var t = field.tiles[i];
       if (t.from === t.to) drawLayer(t, t.to, 1);
@@ -854,6 +871,7 @@
       owed = Math.min(owed - tickMs, tickMs);
       field.step(tickMs);
       dirty = true;
+      for (var k = 0; k < ticks.length; k++) ticks[k]();
     }
     /* holes first, so a hole that just went soft starts fading this frame */
     if (sync(true)) dirty = true;
@@ -887,9 +905,12 @@
     bitmaps: GLYPHS,
     large: LARGE,
     reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
+    /* re-measure the holes now, for a cutout that appears on its own */
+    sync: function(){ sync(); },
     /* The cut cells, for the tuning page's hole overlay, and the soft
      * cells and tones, for the review probes. */
-    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone, fill: field.fill }; },
+    holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone, fill: field.fill, section: field.section }; },
+    ticks: ticks,
     /* What is on screen now: for each section, how many cells show each
      * tone of its ramp, plus the share of tiles at each size. */
     stats: function(){
