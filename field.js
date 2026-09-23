@@ -707,8 +707,11 @@
         var a = num(st.bands[i][0]), w = num(st.bands[i][1] - st.bands[i][0]);
         var q = 'clamp(0, (var(--txt) - ' + a + ') / ' + w + ', 1)';
         img.push('linear-gradient(#000,#000)');
-        size.push('calc(' + q + ' * (2 - ' + q + ') * (100% + var(--cut-pad, 96px))) ' + CH + 'px');
-        pos.push('0 ' + (i * CH - st.phase) + 'px');
+        /* whole pixels, each band a pixel taller than its row so it
+         * overlaps the next: layers meeting at a fraction of a pixel
+         * leave an antialiased seam through the text */
+        size.push('calc(' + q + ' * (2 - ' + q + ') * (100% + var(--cut-pad, 96px))) ' + (CH + 1) + 'px');
+        pos.push('0 ' + Math.round(i * CH - st.phase) + 'px');
       }
       var cs = el.style;
       cs.webkitMaskImage = cs.maskImage = img.join();
