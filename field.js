@@ -493,6 +493,7 @@
     params: PARAMS,
     defaults: DEFAULTS,
     glyphs: Object.keys(GLYPHS),
+    bitmaps: GLYPHS,
     large: LARGE,
     reseed: function(){ newField(field.cols, field.rows); if (reduce){ settle(); draw(); } },
     /* What is on screen now: for each section, how many cells show each
