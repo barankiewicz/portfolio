@@ -65,7 +65,7 @@
      rather than run under the nav. At 720 and under the nav takes the
      width, so it has its own vw there, hung under the nav. Its box
      snaps outward to the field's cells. */
-  --cloud-on-w: .4055;        /* its width, in name widths */
+  --cloud-on-w: .405954;      /* its width, in name widths (600px at 2560) */
   --cloud-on-x: .747;         /* its left edge, in name widths from the name's left */
   --cloud-gap: .0758;         /* its bottom above the name's text, in name widths */
   --cloud-vw-sm: 58;          /* at 720px and under */
@@ -234,11 +234,11 @@ nav > *{pointer-events:auto}
   --nw:calc(var(--name-r, 0px) - var(--name-l, 0px));
   --bot:calc(var(--hero-top-px, 100vh) - var(--nw) * var(--cloud-gap));
   --w:min(var(--nw) * var(--cloud-on-w), (var(--bot) - var(--page-top, 120px) - var(--cell-h)) * 16 / 9);
-  --h:round(up, var(--w) * 9 / 16, var(--cell-h));
+  --h:round(var(--w) * 9 / 16, var(--cell-h));
   position:fixed;z-index:0;display:block;
   left:round(down, min(var(--name-l, 0px) + var(--nw) * var(--cloud-on-x), 100vw - var(--edge) - var(--w)), var(--cell-w));
   top:round(down, var(--bot) - var(--h), var(--cell-h));
-  width:round(up, var(--w), var(--cell-w));
+  width:round(var(--w), var(--cell-w));
   height:var(--h);
   pointer-events:none;
 }
