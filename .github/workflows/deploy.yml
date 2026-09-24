@@ -23,6 +23,7 @@ jobs:
           cp index.html style.css script.js field.js cloud.js cloud-cells.bin Alicja-Barankiewicz_CV_data_engineer.pdf _site/
           cp -r fonts _site/
           cp *.mp4 _site/ 2>/dev/null || true
+          cp *.webm _site/ 2>/dev/null || true
           cp *.png _site/ 2>/dev/null || true
           printf '%s\n' "$GITHUB_SHA" > _site/deploy-revision.txt
       - name: Install lftp

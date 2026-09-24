@@ -111,18 +111,21 @@
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var FPS = 8, SW = 64, SH = 36;
   var intro = document.querySelector('.hero-intro'), introCells = '';
-  var frames = [], cells = null, count = 0, ready = false;
+  var frames = [], cells = null, ready = false;
 
   /* The whole file is fetched first and seeked in memory: a server
    * without range requests leaves a streamed video unseekable, and every
    * seek would land back on frame 0. */
   function decodeFrames(){
     var v = document.createElement('video');
+    var sourceUrl;
     v.muted = true; v.playsInline = true; v.preload = 'auto';
+    var source = v.canPlayType('video/webm; codecs="vp9"') ? canvas.getAttribute('data-webm') : canvas.getAttribute('data-src');
     function once(ev){ return new Promise(function(ok, fail){ v.addEventListener(ev, ok, { once: true }); v.addEventListener('error', fail, { once: true }); }); }
-    return fetch(canvas.getAttribute('data-src')).then(function(r){ return r.blob(); }).then(function(blob){
+    return fetch(source).then(function(r){ if (!r.ok) throw new Error('Cloud video HTTP ' + r.status); return r.blob(); }).then(function(blob){
       var loaded = once('loadeddata');
-      v.src = URL.createObjectURL(blob);
+      sourceUrl = URL.createObjectURL(blob);
+      v.src = sourceUrl;
       return loaded;
     }).then(function(){
       var n = reduce ? 1 : Math.round(v.duration * FPS), w = Math.min(v.videoWidth, Math.ceil(canvas.getBoundingClientRect().width * dpr() * 1.5) || v.videoWidth);
@@ -132,9 +135,21 @@
         if (i >= n) return frames;
         var seeked = once('seeked');
         v.currentTime = (i + 0.5) / FPS;
-        return seeked.then(function(){ return createImageBitmap(v, opts); }).then(function(b){ frames.push(b); return grab(i + 1); });
+        return seeked.then(function(){
+          return createImageBitmap(v, opts).catch(function(){ return createImageBitmap(v); });
+        }).then(function(b){
+          frames.push(b);
+          if (i === 0) return cellsPromise.then(function(data){
+            cells = data;
+            n = Math.min(n, Math.floor(cells.length / (SW * SH * 3)));
+            if (!n) throw new Error('Cloud cell data is empty');
+            start();
+            return grab(i + 1);
+          });
+          return grab(i + 1);
+        });
       }
-      return grab(0).then(function(f){ URL.revokeObjectURL(v.src); v.removeAttribute('src'); v.load(); return f; });
+      return grab(0).finally(function(){ URL.revokeObjectURL(sourceUrl); v.removeAttribute('src'); v.load(); });
     });
   }
   /* cloud-cells.bin is gzipped; a server may already have unzipped it. */
@@ -354,10 +369,7 @@
       blend: box ? { appear: appear, show: Array.from(box.u), level: Array.from(box.level) } : null }; }
   };
 
-  Promise.all([decodeFrames(), loadCells()]).then(function(res){
-    cells = res[1];
-    count = Math.min(frames.length, Math.floor(cells.length / (SW * SH * 3)));
-    frames.length = count;
+  function start(){
     show();
     field.ticks.push(onTick);
     if (reduce){
@@ -375,5 +387,10 @@
     }
     document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); else play(); });
     play();
-  }).catch(function(){ canvas.remove(); });
+  }
+  var cellsPromise = loadCells();
+  decodeFrames().catch(function(error){
+    console.warn('Cloud clip could not finish decoding:', error);
+    if (!ready) canvas.remove();
+  });
 })();

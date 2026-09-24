@@ -243,6 +243,14 @@ nav > *{pointer-events:auto}
   height:var(--h);
   pointer-events:none;
 }
+@supports not (width:round(12px, 12px)){
+  .cloud{
+    --h:calc(var(--w) * 9 / 16);
+    left:min(var(--name-l, 0px) + var(--nw) * var(--cloud-on-x), 100vw - var(--edge) - var(--w));
+    top:calc(var(--bot) - var(--h));
+    width:var(--w);
+  }
+}
 
 /* === STRATA ===
    Every content block is its own hole in the field (data-cutout in the
@@ -495,5 +503,15 @@ footer{
     top:round(up, max(var(--nav-clear), min(var(--nav-clear) + var(--cloud-y-sm) * 1px, var(--name-clear) - var(--h))), var(--cell-h));
     width:calc(round(up, var(--r), var(--cell-w)) - round(down, var(--r) - var(--w), var(--cell-w)));
     height:var(--h);
+  }
+}
+@media(max-width:720px), (max-width:900px) and (max-height:480px){
+  @supports not (width:round(12px, 12px)){
+    .cloud{
+      --h:calc(var(--w) * 9 / 16);
+      left:calc(var(--r) - var(--w));
+      top:max(var(--nav-clear), min(var(--nav-clear) + var(--cloud-y-sm) * 1px, var(--name-clear) - var(--h)));
+      width:var(--w);
+    }
   }
 }
