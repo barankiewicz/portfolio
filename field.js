@@ -343,7 +343,7 @@
      * carry its own padR, which a hole sweeping open grows from zero.
      * A box may also carry its own pad and rag ([left, right, top,
      * bottom] in cells) and fill grey, for a hole that is not a text
-     * hole (the cloud clip's); padR still wins on the right. */
+     * hole (PORTFOLIO's, on the cloud clip); padR still wins on the right. */
     function setCutouts(list){
       cutouts = list || [];
       cutHoles();
@@ -626,8 +626,19 @@
   /* A cell is GWxGH glyph pixels of PARAMS.pixel CSS px each; larger sizes
    * are the same bitmap with chunkier pixels. */
   var GW = 6, GH = 8, PX = 0, CW = 0, CH = 0;
-  var ticks = [];                              // called after each field tick (the cloud clip's ASCII take)
+  var ticks = [];                              // called after each field tick and each settle (the cloud clip)
   var atlas = null, atlasGreys = '', dpr = 1, field = null, raf = 0, last = 0, owed = 0, cutKey = '';
+  /* A tint recolours the glyphs over a region of cells (the cloud clip's
+   * field blend, cloud.js). Glyphs touching the region are drawn into
+   * their own layer, which is then masked and coloured by compositing
+   * two small canvases of one pixel per cell over it, never by reading
+   * pixels back: show's alpha is how much of each cell's glyph stays,
+   * colour's rgb is its colour and alpha how much of it the glyph takes.
+   * paint, if set, then draws over the glyphs in the region's clip box
+   * (x, y, w, h in the layer's device px), so the video shows through
+   * them. { x, y, cols, rows, box: { x, y, cols, rows }, show, colour,
+   * paint } in cells. */
+  var tint = null, layer = null, lctx = null, lmask = null, lx = 0, ly = 0;
 
   /* One row of glyphs per grey, drawn pixel by pixel: hard edges, no
    * antialiasing, and only the three greys ever reach the canvas. */
@@ -742,7 +753,8 @@
   }
   /* A hole's own pad, rag and fill, from data-cutout-pad / -rag ("left
    * right top bottom", in cells) and data-cutout-fill (a grey), for the
-   * one hole that is not dressed like the text holes: the cloud clip. */
+   * one hole that is not dressed like the text holes: PORTFOLIO's, on
+   * the cloud clip. */
   function ownHole(el){
     var o = {}, pad = el.getAttribute('data-cutout-pad'), rag = el.getAttribute('data-cutout-rag'), fill = el.getAttribute('data-cutout-fill');
     if (pad) o.pad = pad.trim().split(/\s+/).map(Number);
@@ -818,9 +830,44 @@
 
   function blit(s, glyph, grey, x, y, alpha){
     if (!glyph || alpha <= 0) return;
-    if (alpha !== ctx.globalAlpha) ctx.globalAlpha = alpha;
-    ctx.drawImage(atlas, glyph * GW, grey * GH, GW, GH,
-      Math.round(x * CW * dpr), Math.round(y * CH * dpr), Math.round(s * CW * dpr), Math.round(s * CH * dpr));
+    var g = ctx, ox = 0, oy = 0;
+    if (tint && x < tint.x + tint.cols && x + s > tint.x && y < tint.y + tint.rows && y + s > tint.y){ g = lctx; ox = Math.round(lx * CW * dpr); oy = Math.round(ly * CH * dpr); }
+    if (alpha !== g.globalAlpha) g.globalAlpha = alpha;
+    g.drawImage(atlas, glyph * GW, grey * GH, GW, GH,
+      Math.round(x * CW * dpr) - ox, Math.round(y * CH * dpr) - oy, Math.round(s * CW * dpr), Math.round(s * CH * dpr));
+  }
+
+  /* The layer spans whole tiles, since a glyph never leaves its tile:
+   * one that only touches the region is still drawn whole. Positions in
+   * it are the main canvas's, less its corner, so it lands pixel for
+   * pixel where the glyphs would have. */
+  function tintStart(){
+    lx = Math.floor(tint.x / TILE) * TILE; ly = Math.floor(tint.y / TILE) * TILE;
+    var cols = Math.ceil((tint.x + tint.cols) / TILE) * TILE - lx, rows = Math.ceil((tint.y + tint.rows) / TILE) * TILE - ly;
+    var w = Math.round((lx + cols) * CW * dpr) - Math.round(lx * CW * dpr), h = Math.round((ly + rows) * CH * dpr) - Math.round(ly * CH * dpr);
+    if (!layer){ layer = document.createElement('canvas'); lctx = layer.getContext('2d'); lmask = document.createElement('canvas'); }
+    if (layer.width !== w || layer.height !== h){ layer.width = w; layer.height = h; }
+    else lctx.clearRect(0, 0, w, h);
+    lmask.width = cols; lmask.height = rows;
+    lctx.globalAlpha = 1;
+    lctx.imageSmoothingEnabled = false;
+  }
+  function tintEnd(){
+    var w = layer.width, h = layer.height, b = tint.box, sx = w / lmask.width, sy = h / lmask.height;
+    /* the show mask, over the whole layer: glyphs outside the region stay */
+    var m = lmask.getContext('2d');
+    m.fillStyle = '#fff'; m.fillRect(0, 0, lmask.width, lmask.height);
+    m.clearRect(tint.x - lx, tint.y - ly, tint.cols, tint.rows);
+    m.drawImage(tint.show, tint.x - lx, tint.y - ly);
+    lctx.globalAlpha = 1;
+    lctx.globalCompositeOperation = 'destination-in';
+    lctx.drawImage(lmask, 0, 0, w, h);
+    lctx.globalCompositeOperation = 'source-atop';
+    lctx.drawImage(tint.colour, (tint.x - lx) * sx, (tint.y - ly) * sy, tint.cols * sx, tint.rows * sy);
+    if (tint.paint) tint.paint(lctx, (b.x - lx) * sx, (b.y - ly) * sy, b.cols * sx, b.rows * sy);
+    lctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(layer, Math.round(lx * CW * dpr), Math.round(ly * CH * dpr));
   }
 
   function drawLayer(t, s, alpha){
@@ -873,11 +920,13 @@
       ctx.fillRect(x0, y0, Math.round((cx + 1) * CW * dpr) - x0, Math.round((cy + 1) * CH * dpr) - y0);
     }
     ctx.globalAlpha = 1;
+    if (tint) tintStart();
     for (var i = 0; i < field.tiles.length; i++){
       var t = field.tiles[i];
       if (t.from === t.to) drawLayer(t, t.to, 1);
       else { drawLayer(t, t.from, 1 - t.mix); drawLayer(t, t.to, t.mix); }
     }
+    if (tint) tintEnd();
   }
 
   /* The display runs at its own rate; the field only steps and redraws
@@ -912,6 +961,7 @@
    * cells uncovered by a resize have to be settled here or stay empty. */
   function settle(){
     for (var k = 0; k < 150; k++) field.step(1000 / PARAMS.fps);
+    for (var j = 0; j < ticks.length; j++) ticks[j]();
   }
 
   /* The tuning pages (.claude/review-02/tune.html for the field,
@@ -921,7 +971,6 @@
     params: PARAMS,
     defaults: DEFAULTS,
     glyphs: Object.keys(GLYPHS),
-    bitmaps: GLYPHS,
     large: LARGE,
     reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
     /* re-measure the holes now, for a cutout that appears on its own */
@@ -938,6 +987,10 @@
      * cells and tones, for the review probes. */
     holes: function(){ return { cols: field.cols, rows: field.rows, cw: CW, ch: CH, cut: field.cut, soft: field.soft, tone: field.tone, fill: field.fill, section: field.section }; },
     ticks: ticks,
+    /* the cloud clip's field blend: a tint (see above) or null, and a
+     * redraw for when it changes between ticks */
+    tint: function(t){ tint = t || null; },
+    redraw: function(){ if (field) draw(); },
     /* What is on screen now: for each section, how many cells show each
      * tone of its ramp, plus the share of tiles at each size. */
     stats: function(){

@@ -1,7 +1,7 @@
-/* The cloud clip: the sky video in its own hole at the top right,
- * playing forwards and backwards, and now and then glitching into its
- * ASCII take, the same clip redrawn in the field's glyphs and coloured
- * from the video under each cell. The one thing on the site in colour.
+/* The cloud clip: the sky video at the top right, playing forwards and
+ * backwards under the field, seen through it. Where the field over the
+ * clip is lit its glyphs take the video's colour; where it is empty the
+ * video shows. The one thing on the site in colour.
  *
  * The model below is pure (no DOM) so node can test it; the renderer at
  * the bottom only runs in a browser, after field.js. Times are in ms
@@ -13,83 +13,23 @@
   var TONES = 6;
   /* Every tunable value, read live, so the tuning page
    * (.claude/review-07/tune.html) can change them while the clip runs.
-   * Placement is CSS (--cloud-* on :root) and the hole's pad, rag and
-   * fill are attributes on the canvas; everything else is here. */
+   * Placement is CSS (--cloud-* on :root); everything else is here. */
   var DEFAULTS = {
-    gapMin: 2, gapMax: 4,                       // s between glitches
-    lenMin: 0.5, lenMax: 2.9,                   // s a glitch lasts
-    lenSkew: 3.7,                              // above 1 most glitches are short
-    stutter: 0,                                // chance a glitch comes as 2-3 quick ones
-    swap: 'bands',                             // 'bands', or 'cut': the whole clip in one frame
-    bandRows: 1,                               // cell rows per band
-    swapWindow: 48,                            // ms the bands take to flip, each way
-    ramp: 'field',                             // 'field' (the section under each cell), 0, 1, 2 (a section's ramp) or 'own'
-    ownRamp: ['·', '-', '~', '≈', '▒', '▓'],
-    toneLow: 0.39, toneHigh: 0.76,               // the brightness span the ramp is spread over
-    boost: 1.35,                               // saturation and brightness lift, since glyphs on black read darker
-    routes: 'all',                             // 'home': the clip leaves with the hero; 'all': it stays on every route
-    dim: false                                 // with routes 'all', dim it while a page is open
+    boost: 1.5,                                // saturation and brightness lift, since glyphs on black read darker
+    routes: 'all',                             // 'home': the clip fades out while a page is open; 'all': it stays on every route
+    blendThreshold: 0,                         // this field tone and under shows video, above it the glyph
+    backdrop: 'dim',                           // behind a lit glyph: 'dim' (video dimmed by tone) or 'fade' (crossfade to black)
+    dimCurve: 1,                               // above 1 the video darkens sooner as tones rise
+    fadeTime: 0.2,                             // s a cell takes to crossfade, with backdrop 'fade'
+    tint: 'cell',                              // 'cell': one flat colour per cell; 'pixel': the video through the glyph
+    edgeReach: 6,                              // cells past the box where the colour is gone, 0 or 1 a hard edge
+    edgeFalloff: 0.7,                          // above 1 the colour drops off sooner
+    blendIn: 0.25                              // s the blend takes to come in
   };
   var PARAMS = JSON.parse(JSON.stringify(DEFAULTS));
 
-  /* === GLITCH SCHEDULE === */
-  function between(rnd, a, b){ return a + (b - a) * rnd(); }
-  function glitchGap(rnd, P){ return 1000 * between(rnd, P.gapMin, P.gapMax); }
-  /* Skewed toward the short end: u^skew bunches near 0 for skew > 1. */
-  function glitchLength(rnd, P){ return 1000 * (P.lenMin + (P.lenMax - P.lenMin) * Math.pow(rnd(), P.lenSkew)); }
-  /* One episode: a glitch, or with the stutter chance two or three
-   * quick ones, each from lenMin to twice that, a beat apart after the
-   * one before has swapped back. at is from the episode's start. */
-  function planEpisode(rnd, P){
-    if (!(rnd() < P.stutter)) return [{ at: 0, len: glitchLength(rnd, P) }];
-    var out = [], at = 0, n = 2 + (rnd() < 0.5 ? 1 : 0);
-    for (var k = 0; k < n; k++){
-      var len = 1000 * P.lenMin * (1 + rnd());
-      out.push({ at: at, len: len });
-      at += len + P.swapWindow + between(rnd, 80, 240);
-    }
-    return out;
-  }
-
-  /* === SWAP ===
-   * A glitch's bands: rows r0..r1 of cells, each showing the take from
-   * on to off (ms from the glitch's start). In bands mode each band
-   * gets its own slot of the window, in random order, going in and
-   * again coming out; a hard cut is one band of every row, in at 0 and
-   * out at len. */
-  function shuffled(rnd, n){
-    var a = [];
-    for (var i = 0; i < n; i++) a.push(i);
-    for (var j = n - 1; j > 0; j--){ var k = Math.floor(rnd() * (j + 1)), t = a[j]; a[j] = a[k]; a[k] = t; }
-    return a;
-  }
-  function planSwap(rnd, rows, P, len){
-    if (P.swap === 'cut') return [{ r0: 0, r1: rows, on: 0, off: len }];
-    var h = Math.max(1, Math.round(P.bandRows)), n = Math.ceil(rows / h);
-    var ins = shuffled(rnd, n), outs = shuffled(rnd, n), out = [];
-    for (var b = 0; b < n; b++)
-      out.push({ r0: b * h, r1: Math.min(rows, (b + 1) * h), on: P.swapWindow * ins[b] / n, off: len + P.swapWindow * outs[b] / n });
-    return out;
-  }
-  /* One display frame of a swap: of the bands whose state is not yet
-   * what the time says, flip the one that has waited longest, and only
-   * that one, so no frame changes more than one band however slow the
-   * frames are. shown holds 1 where a band is on the take. Returns the
-   * band flipped, or -1. */
-  function stepSwap(bands, shown, t){
-    var pick = -1, since = Infinity;
-    for (var b = 0; b < bands.length; b++){
-      var want = t >= bands[b].on && t < bands[b].off ? 1 : 0;
-      if (want === shown[b]) continue;
-      var due = want ? bands[b].on : bands[b].off;
-      if (due < since){ since = due; pick = b; }
-    }
-    if (pick >= 0) shown[pick] ^= 1;
-    return pick;
-  }
-
   /* === SAMPLING ===
-   * The take reads its colours from a small copy of the clip, sw x sh
+   * The blend reads its colours from a small copy of the clip, sw x sh
    * samples per frame, each the mean of the video pixels it stands for
    * (cloud-cells.bin, made by ffmpeg's area scaler), so no pixels are
    * ever read back from a canvas: privacy browsers blank those reads.
@@ -115,13 +55,6 @@
     }
     return area ? [r / area, g / area, b / area] : [0, 0, 0];
   }
-  /* A colour's ramp step, 0 (empty) to 6, from its luminance spread
-   * over toneLow..toneHigh. Monotone, so brighter never means sparser. */
-  function toneOf(c, P){
-    var l = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
-    var u = (l - P.toneLow) / (P.toneHigh - P.toneLow);
-    return u <= 0 ? 0 : Math.min(TONES, Math.ceil(u * TONES));
-  }
   /* Saturation and brightness both scaled by 1 + k, hue kept. */
   function boost(c, k){
     var mx = Math.max(c[0], c[1], c[2]), mn = Math.min(c[0], c[1], c[2]);
@@ -130,27 +63,54 @@
     return c.map(function(ch){ var u = mx > mn ? (mx - ch) / (mx - mn) : 0; return v * (1 - s * u); });
   }
 
-  var api = { DEFAULTS: DEFAULTS, PARAMS: PARAMS, glitchGap: glitchGap, glitchLength: glitchLength, planEpisode: planEpisode, planSwap: planSwap, stepSwap: stepSwap, coverRects: coverRects, cellMean: cellMean, toneOf: toneOf, boost: boost };
+  /* === FIELD BLEND ===
+   * Per cell of the clip's box, from the field's tone there. A cell
+   * above the threshold shows its field glyph in the video's colour; at
+   * or below it shows the video. */
+  function blendShows(tone, P){ return tone > P.blendThreshold; }
+  /* Dim by tone: how much video stays behind a cell, 1 at or below the
+   * threshold, one step less for each tone above it, near black at 6.
+   * The field moves a cell one tone per tick, so this moves one step
+   * per tick. */
+  function blendBackdrop(tone, P){
+    if (!blendShows(tone, P)) return 1;
+    return Math.pow(1 - (tone - P.blendThreshold) / (TONES - P.blendThreshold + 1), P.dimCurve);
+  }
+  /* Crossfade: how far a cell is from video (0) to glyph on black (1),
+   * moving toward where its tone says over fadeTime. */
+  function blendFade(u, ascii, dtMs, P){
+    var d = dtMs / (1000 * P.fadeTime);
+    return ascii ? Math.min(1, u + d) : Math.max(0, u - d);
+  }
+  /* How many cells (c, r) lies outside a box of cols x rows cells, from
+   * the nearest cell of the box; 0 inside. */
+  function edgeDistance(c, r, cols, rows){
+    var dx = c < 0 ? -c : c >= cols ? c - cols + 1 : 0, dy = r < 0 ? -r : r >= rows ? r - rows + 1 : 0;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  /* How much of the nearest edge cell's colour a glyph that far out
+   * takes: all of it inside, none at edgeReach and beyond. */
+  function edgeWeight(d, P){
+    if (d <= 0) return 1;
+    if (d >= P.edgeReach) return 0;
+    return Math.pow(1 - d / P.edgeReach, P.edgeFalloff);
+  }
+
+  var api = { DEFAULTS: DEFAULTS, PARAMS: PARAMS, coverRects: coverRects, cellMean: cellMean, boost: boost, blendShows: blendShows, blendBackdrop: blendBackdrop, blendFade: blendFade, edgeDistance: edgeDistance, edgeWeight: edgeWeight };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   /* === RENDERER ===
    * The clip is a canvas whose box style.css snaps to whole field
    * cells. Its frames are decoded once from the video into bitmaps and
    * stepped here at the clip's own 8fps, forwards then backwards, so the
-   * turnaround never waits on a seek or a second file. The take is drawn
-   * into a small buffer at glyph-pixel resolution on each field tick and
-   * scaled up with smoothing off, so its pixels are the field's. */
+   * turnaround never waits on a seek or a second file. */
   var canvas = document.querySelector('.cloud'), field = window.asciiField;
   if (!canvas || !canvas.getContext || !field || !window.createImageBitmap) return;
   var ctx = canvas.getContext('2d');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var FPS = 8, SW = 64, SH = 36, GW = 6, GH = 8;
-  var hero = document.querySelector('.hero'), home = canvas.parentNode, away = document.body;
+  var FPS = 8, SW = 64, SH = 36;
   var intro = document.querySelector('.hero-intro'), introCells = '';
   var frames = [], cells = null, count = 0, ready = false;
-  /* set a frame after the clip takes data-sweep: .open any sooner and it
-   * would land fully open, with nothing for its sweep to start from */
-  var swept = false;
 
   /* The whole file is fetched first and seeked in memory: a server
    * without range requests leaves a streamed video unseekable, and every
@@ -196,121 +156,136 @@
     if (box && box.key === key) return true;
     var cols = Math.round(r.width / holes.cw), rows = Math.round(r.height / holes.ch);
     box = { key: key, cols: cols, rows: rows, gx: Math.round(r.left / holes.cw), gy: Math.round(r.top / holes.ch), w: r.width, h: r.height,
-      rects: coverRects(cols, rows, r.width, r.height, SW, SH), tone: new Uint8Array(cols * rows), fresh: true };
+      rects: coverRects(cols, rows, r.width, r.height, SW, SH),
+      level: new Float32Array(cols * rows).fill(1), u: new Float32Array(cols * rows), rgb: new Float32Array(cols * rows * 3), rgbFrame: -1 };
     canvas.width = Math.round(r.width * d); canvas.height = Math.round(r.height * d);
     /* where PORTFOLIO is placed from (style.css) */
     var rs = document.documentElement.style;
     rs.setProperty('--clip-x', r.left + 'px'); rs.setProperty('--clip-y', r.top + 'px');
     rs.setProperty('--clip-w', r.width + 'px'); rs.setProperty('--clip-h', r.height + 'px');
-    take = document.createElement('canvas');
-    take.width = cols * GW; take.height = rows * GH;
-    takeCtx = take.getContext('2d');
-    takeImg = takeCtx.createImageData(take.width, take.height);
-    /* a glitch's bands were cut for the old box */
-    if (glitch){ glitch = null; episode = []; schedule(clock); }
+    tinted = null;
     dirty = true;
     return true;
   }
 
-  /* === THE ASCII TAKE === */
-  var take = null, takeCtx = null, takeImg = null;
-  function rampFor(sec){
-    var P = PARAMS, ramps = field.params.ramps;
-    if (P.ramp === 'own') return P.ownRamp;
-    return ramps[P.ramp === 'field' ? sec : +P.ramp] || ramps[0];
+  /* === FIELD BLEND ===
+   * The clip sits under the field, with no hole of its own, and the
+   * field runs across it unbroken. Per cell of the box, the field's tone picks
+   * whether its glyph shows (in the video's colour) and how much video
+   * stays behind it; this canvas draws the video and the backdrop, the
+   * field draws the glyphs through its tint (field.js). Glyphs within
+   * edgeReach cells of the box take the nearest edge cell's colour. */
+  var tinted = null, appear = 0;
+  function tintKey(){ return Math.max(0, Math.ceil(PARAMS.edgeReach)) + ',' + PARAMS.tint; }
+  function tintFor(){
+    var reach = Math.max(0, Math.ceil(PARAMS.edgeReach)), key = tintKey();
+    if (tinted && tinted.key === key) return tinted;
+    var cols = box.cols + 2 * reach, rows = box.rows + 2 * reach;
+    function small(){ var c = document.createElement('canvas'); c.width = cols; c.height = rows; return c; }
+    tinted = { key: key, reach: reach, x: box.gx - reach, y: box.gy - reach, cols: cols, rows: rows,
+      box: { x: box.gx, y: box.gy, cols: box.cols, rows: box.rows }, show: small(), colour: small(),
+      paint: PARAMS.tint === 'pixel' ? paintPixels : null };
+    tinted.showImg = tinted.show.getContext('2d').createImageData(cols, rows);
+    tinted.colourImg = tinted.colour.getContext('2d').createImageData(cols, rows);
+    return tinted;
   }
-  /* Resample the frame on screen: each cell's mean colour picks its
-   * step, moving at most one step per tick as the field's cells do,
-   * except on a glitch's first tick, which starts where the frame is. */
-  function drawTake(frame){
-    var P = PARAMS, holes = field.holes(), glyphs = field.bitmaps, data = takeImg.data;
-    data.fill(0);
+  /* Each box cell's glyph and backdrop from the field's tone under it,
+   * on each field tick; dtMs null settles the crossfade where it is
+   * heading. */
+  function stepBlend(dtMs){
+    var P = PARAMS, holes = field.holes();
     for (var r = 0; r < box.rows; r++) for (var c = 0; c < box.cols; c++){
-      var i = r * box.cols + c, q = box.rects[i];
-      var col = cellMean(cells, SW, SH, frame, q[0], q[1], q[2], q[3]), want = toneOf(col, P), t = box.tone[i];
-      t = box.fresh ? want : want > t ? t + 1 : want < t ? t - 1 : t;
-      box.tone[i] = t;
-      if (!t) continue;
-      var gx = box.gx + c, gy = box.gy + r;
-      var sec = gx < holes.cols && gy < holes.rows ? holes.section[gy * holes.cols + gx] : 0;
-      var bm = glyphs[rampFor(sec)[t - 1]];
-      if (!bm) continue;
-      var rgb = boost(col, P.boost);
-      for (var py = 0; py < bm.length; py++) for (var px = 0; px < bm[py].length; px++){
-        if (bm[py].charAt(px) !== '#') continue;
-        var o = ((r * GH + py) * take.width + c * GW + px) * 4;
-        data[o] = rgb[0]; data[o + 1] = rgb[1]; data[o + 2] = rgb[2]; data[o + 3] = 255;
-      }
+      var i = r * box.cols + c, gx = box.gx + c, gy = box.gy + r;
+      var tone = gx >= 0 && gy >= 0 && gx < holes.cols && gy < holes.rows ? holes.tone[gy * holes.cols + gx] : 0, ascii = blendShows(tone, P);
+      if (P.backdrop === 'fade'){ box.u[i] = dtMs == null ? +ascii : blendFade(box.u[i], ascii, dtMs, P); box.level[i] = 1 - box.u[i]; }
+      else { box.u[i] = +ascii; box.level[i] = blendBackdrop(tone, P); }
     }
-    box.fresh = false;
-    takeCtx.putImageData(takeImg, 0, 0);
+    dirty = true;
+  }
+  /* The tint's two canvases: how much of each glyph shows, and its
+   * colour, the boosted mean of the video under the cell (or, past the
+   * box, under the nearest edge cell) as far as edgeWeight and the
+   * blend's own fade-in say. */
+  function paintTint(){
+    var P = PARAMS, t = tintFor(), k = frameAt(clock);
+    if (box.rgbFrame !== k){
+      for (var i = 0; i < box.rects.length; i++){
+        var q = box.rects[i], rgb = boost(cellMean(cells, SW, SH, k, q[0], q[1], q[2], q[3]), P.boost);
+        box.rgb[3 * i] = rgb[0]; box.rgb[3 * i + 1] = rgb[1]; box.rgb[3 * i + 2] = rgb[2];
+      }
+      box.rgbFrame = k;
+    }
+    var show = t.showImg.data, colour = t.colourImg.data;
+    for (var rr = 0; rr < t.rows; rr++) for (var rc = 0; rc < t.cols; rc++){
+      var c = rc - t.reach, r = rr - t.reach, o = 4 * (rr * t.cols + rc);
+      var inside = c >= 0 && r >= 0 && c < box.cols && r < box.rows;
+      var n = Math.min(box.rows - 1, Math.max(0, r)) * box.cols + Math.min(box.cols - 1, Math.max(0, c));
+      show[o + 3] = inside ? Math.round(255 * box.u[n]) : 255;
+      colour[o] = box.rgb[3 * n]; colour[o + 1] = box.rgb[3 * n + 1]; colour[o + 2] = box.rgb[3 * n + 2];
+      colour[o + 3] = Math.round(255 * appear * edgeWeight(edgeDistance(c, r, box.cols, box.rows), P));
+    }
+    t.show.getContext('2d').putImageData(t.showImg, 0, 0);
+    t.colour.getContext('2d').putImageData(t.colourImg, 0, 0);
+    field.tint(t);
+  }
+  /* tint 'pixel': the video itself through the glyphs over the box */
+  function paintPixels(g, x, y, w, h){
+    var img = frames[frameAt(clock)], s = Math.max(w / img.width, h / img.height), k = 1 + PARAMS.boost;
+    g.save();
+    g.beginPath(); g.rect(x, y, w, h); g.clip();
+    g.globalAlpha = appear;
+    g.imageSmoothingEnabled = true;
+    if ('filter' in g) g.filter = 'saturate(' + k + ') brightness(' + k + ')';
+    g.drawImage(img, x + (w - img.width * s) / 2, y + (h - img.height * s) / 2, img.width * s, img.height * s);
+    g.restore();
+  }
+  function drawBlend(){
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = appear;
+    ctx.imageSmoothingEnabled = true;
+    cover(frames[frameAt(clock)]);
+    var sx = canvas.width / box.cols, sy = canvas.height / box.rows;
+    ctx.fillStyle = '#000';
+    for (var i = 0; i < box.level.length; i++){
+      if (box.level[i] >= 1) continue;
+      var c = i % box.cols, r = (i - c) / box.cols, x0 = Math.round(c * sx), y0 = Math.round(r * sy);
+      ctx.globalAlpha = appear * (1 - box.level[i]);
+      ctx.fillRect(x0, y0, Math.round((c + 1) * sx) - x0, Math.round((r + 1) * sy) - y0);
+    }
+    ctx.globalAlpha = 1;
+  }
+  /* The field ticks: every box cell has a new tone, so the tint follows
+   * before the field draws, in the same frame. Under reduced motion this
+   * is a settle (a resize, a font, a new hole), and with no loop here the
+   * clip redraws at once. */
+  function onTick(){
+    if (!ready || !box) return;
+    stepBlend(reduce ? null : 1000 / field.params.fps);
+    paintTint();
+    if (reduce) draw();
   }
 
-  /* === PLAYBACK AND GLITCHES === */
+  /* === PLAYBACK === */
   var clock = 0, shownFrame = -1, dirty = true, raf = 0, last = 0;
-  var nextAt = 0, episode = [], glitch = null, shown = null, ticked = false;
   function frameAt(ms){
     var n = frames.length, k = Math.floor(ms * FPS / 1000) % Math.max(1, 2 * (n - 1));
     return k < n ? k : 2 * (n - 1) - k;
   }
-  /* The wait is re-rolled if the gap params change while it runs, so
-   * the tuning page's gap sliders take effect at once. */
-  var gapFrom = 0, gapKey = '';
-  function schedule(from){ gapFrom = from; gapKey = PARAMS.gapMin + ',' + PARAMS.gapMax; nextAt = from + glitchGap(Math.random, PARAMS); }
-  function startEpisode(at){
-    episode = planEpisode(Math.random, PARAMS).map(function(g){ return { at: at + g.at, len: g.len }; });
-    glitch = null;
-  }
-  function stepGlitches(){
-    if (!glitch && episode.length && clock >= episode[0].at){
-      var g = episode.shift();
-      glitch = { at: g.at, bands: planSwap(Math.random, box.rows, PARAMS, g.len) };
-      shown = new Uint8Array(glitch.bands.length);
-      box.fresh = true;
-      drawTake(frameAt(clock));
-    }
-    if (!glitch){
-      if (PARAMS.gapMin + ',' + PARAMS.gapMax !== gapKey) schedule(gapFrom);
-      if (!episode.length && clock >= nextAt) startEpisode(clock);
-      return;
-    }
-    var t = clock - glitch.at;
-    if (stepSwap(glitch.bands, shown, t) >= 0) dirty = true;
-    var end = 0;
-    for (var b = 0; b < glitch.bands.length; b++) end = Math.max(end, glitch.bands[b].off);
-    if (t >= end && shown.every(function(v){ return !v; })){
-      glitch = null;
-      if (!episode.length) schedule(clock);
-    }
-  }
-
   function cover(img){
     var s = Math.max(canvas.width / img.width, canvas.height / img.height), w = img.width * s, h = img.height * s;
     ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
   }
   function draw(){
     var k = frameAt(clock);
-    ctx.imageSmoothingEnabled = true;
-    cover(frames[k]);
     shownFrame = k;
-    if (glitch){
-      var sy = canvas.height / box.rows;
-      ctx.imageSmoothingEnabled = false;
-      ctx.fillStyle = '#000';
-      for (var b = 0; b < glitch.bands.length; b++){
-        if (!shown[b]) continue;
-        var g = glitch.bands[b], y0 = Math.round(g.r0 * sy), y1 = Math.round(g.r1 * sy);
-        ctx.fillRect(0, y0, canvas.width, y1 - y0);
-        ctx.drawImage(take, 0, g.r0 * GH, take.width, (g.r1 - g.r0) * GH, 0, y0, canvas.width, y1 - y0);
-      }
-    }
+    drawBlend();
     cutIntro();
     dirty = false;
   }
 
   /* PORTFOLIO's hole, cut into the video: the very cells its hole in the
    * field covers (field.cutsOf), so it has the field's pad, rag and
-   * scanline bands, in its own fill grey. Drawn over the take too. */
+   * scanline bands, in its own fill grey. */
   function introHole(){ return intro && intro.hasAttribute('data-cutout') ? field.cutsOf(intro) : []; }
   function cutIntro(){
     var cells = introHole(), holes = field.holes(), sx = canvas.width / box.cols, sy = canvas.height / box.rows;
@@ -326,27 +301,19 @@
     introCells = cells.join();
   }
 
-  /* home: the clip lives in the hero, so it opens and closes with the
-   * hero's lines on a route change. all: it lives outside every route
-   * and stays open, dimmed while a page is open if dim is on. */
-  function place(){
-    var P = PARAMS, parent = P.routes === 'all' ? away : home;
-    if (canvas.parentNode !== parent) parent.insertBefore(canvas, parent === away ? away.firstChild : null);
-    canvas.classList.toggle('everywhere', P.routes === 'all');
-    canvas.classList.toggle('dim', !!P.dim);
-    if (P.routes === 'all' && swept) canvas.classList.add('open');
-  }
-
   function frame(now){
     raf = requestAnimationFrame(frame);
     var dt = last ? Math.min(now - last, 100) : 0;
     last = now;
-    place();
     if (!fit()) return;
     clock += dt;
-    stepGlitches();
-    if (glitch && ticked){ drawTake(frameAt(clock)); dirty = true; }
-    ticked = false;
+    /* on 'home' the clip fades out while a page is open */
+    var to = PARAMS.routes === 'all' || !document.body.classList.contains('page-open') ? 1 : 0, was = appear;
+    appear = to > appear ? Math.min(to, appear + dt / (1000 * PARAMS.blendIn)) : Math.max(to, appear - dt / (1000 * PARAMS.blendIn));
+    /* the tint's colours follow the video frame and the fade-in */
+    if (!tinted || appear !== was || box.rgbFrame !== frameAt(clock) || tinted.key !== tintKey()){
+      paintTint(); field.redraw(); dirty = true;
+    }
     if (dirty || frameAt(clock) !== shownFrame || introHole().join() !== introCells) draw();
   }
   function play(){
@@ -356,35 +323,28 @@
   }
   function pause(){ cancelAnimationFrame(raf); raf = 0; }
 
-  /* The clip only takes its hole and starts its sweep once its first
-   * frame can be drawn, so nothing is ever painted while it loads. On
-   * home it opens with the hero; elsewhere the hero's own open picks it
-   * up when the route comes back. */
+  /* The clip fades in with its colour once its first frame can be
+   * drawn, so nothing is ever painted while it loads; PORTFOLIO takes
+   * its hole and sweeps open then. */
   function show(){
     ready = true;
     fit();
-    draw();
-    canvas.setAttribute('data-cutout', 'box');
-    canvas.setAttribute('data-sweep', '');
+    /* reduced motion: one settled blend frame, there is no loop */
+    if (reduce) appear = 1;
     if (intro){ intro.setAttribute('data-cutout', 'text'); intro.setAttribute('data-sweep', ''); }
-    place();
     field.sync();
+    if (reduce){ stepBlend(null); paintTint(); field.redraw(); }
     draw();
     requestAnimationFrame(function(){
-      swept = true;
-      canvas.classList.add('ready');
-      var home = !document.body.classList.contains('page-open');
-      if (PARAMS.routes === 'all' || home) canvas.classList.add('open');
-      if (intro && home) intro.classList.add('open');
+      if (intro && !document.body.classList.contains('page-open')) intro.classList.add('open');
     });
   }
 
   window.cloudClip = {
     params: PARAMS,
     defaults: DEFAULTS,
-    /* for the tuning page: a glitch now, not in a few seconds */
-    glitch: function(){ if (ready && !reduce && !glitch){ startEpisode(clock); } },
-    state: function(){ return { ready: ready, clock: clock, frame: shownFrame, frames: frames.length, glitch: glitch && { at: glitch.at, bands: glitch.bands, shown: Array.from(shown) }, nextAt: nextAt, box: box && { cols: box.cols, rows: box.rows, gx: box.gx, gy: box.gy } }; }
+    state: function(){ return { ready: ready, clock: clock, frame: shownFrame, frames: frames.length, box: box && { cols: box.cols, rows: box.rows, gx: box.gx, gy: box.gy },
+      blend: box ? { appear: appear, show: Array.from(box.u), level: Array.from(box.level) } : null }; }
   };
 
   Promise.all([decodeFrames(), loadCells()]).then(function(res){
@@ -392,9 +352,8 @@
     count = Math.min(frames.length, Math.floor(cells.length / (SW * SH * 3)));
     frames.length = count;
     show();
+    field.ticks.push(onTick);
     if (reduce) return;
-    schedule(0);
-    field.ticks.push(function(){ ticked = true; });
     document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); else play(); });
     play();
   }).catch(function(){ canvas.remove(); });
