@@ -15,12 +15,17 @@
   function placePages(){
     root.style.setProperty('--page-top', Math.ceil(navLeft.getBoundingClientRect().bottom + 8) + 'px');
     root.style.setProperty('--rail-x', Math.round(firstLink.getBoundingClientRect().left) + 'px');
-    /* The cloud clip stays above the name's hole, which is cut round its
-     * text, taller than its box at a 0.7 line height. Kept while a page
-     * hides the hero. */
+    /* The cloud clip is placed from the name's text, which its hole is
+     * cut round (taller than its box at a 0.7 line height), so the two
+     * keep the same relation at every width. Kept while a page hides
+     * the hero. */
     nameText.selectNodeContents(heroContent);
     var h = nameText.getBoundingClientRect();
-    if (h.height > 0) root.style.setProperty('--hero-top-px', Math.floor(h.top) + 'px');
+    if (h.height > 0){
+      root.style.setProperty('--hero-top-px', Math.floor(h.top) + 'px');
+      root.style.setProperty('--name-l', Math.round(h.left) + 'px');
+      root.style.setProperty('--name-r', Math.round(h.right) + 'px');
+    }
   }
   if (window.ResizeObserver){ new ResizeObserver(placePages).observe(navLeft); new ResizeObserver(placePages).observe(heroContent); }
   window.addEventListener('resize', placePages);

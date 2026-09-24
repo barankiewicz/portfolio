@@ -57,16 +57,18 @@
   --stagger: 35ms;            /* between blocks opening together */
   --shut: .14s;               /* text wiping out on close */
 
-  /* The cloud clip: its width in vw up to a px cap (and its own vw at
-     720 and under), nudged in px in from the right gutter and down from
-     the top. It never drops into the name's hole: script.js sets
-     --hero-top-px from where the hero landed, and the clip rises to keep
-     two cells of field between its hole and the name's. Its box snaps outward to the field's cells. */
-  --cloud-vw: 23;
-  --cloud-max: 720;           /* px */
+  /* The cloud clip, placed from the name's text (script.js sets
+     --name-l/-r and --hero-top-px from it), in shares of the name's
+     width, so the two keep one relation at every width: Alicja's 2560
+     screen, 600px wide ending 226px past the name, seven cells above
+     it. It moves left rather than cross the right gutter and shrinks
+     rather than run under the nav. At 720 and under the nav takes the
+     width, so it has its own vw there, hung under the nav. Its box
+     snaps outward to the field's cells. */
+  --cloud-on-w: .4055;        /* its width, in name widths */
+  --cloud-on-x: .747;         /* its left edge, in name widths from the name's left */
+  --cloud-gap: .0758;         /* its bottom above the name's text, in name widths */
   --cloud-vw-sm: 58;          /* at 720px and under */
-  --cloud-x: 600;             /* px in from the right gutter */
-  --cloud-y: 400;             /* px down from the top */
   --cloud-x-sm: 0;            /* px in from the right gutter, at 720 and under */
   --cloud-y-sm: 76;           /* px down from under the nav, at 720 and under, where the nav takes the width */
   --cell-w: 12px;             /* a field cell: PARAMS.pixel 2 x 6x8 */
@@ -229,16 +231,14 @@ nav > *{pointer-events:auto}
    are the field's. cloud.js fades it in once its first frame can be
    drawn. */
 .cloud{
-  --w:min(calc(var(--cloud-vw) * 1vw), calc(var(--cloud-max) * 1px));
-  --r:calc(100vw - var(--edge) - var(--cloud-x) * 1px);
-  --y:calc(var(--cloud-y) * 1px);
+  --nw:calc(var(--name-r, 0px) - var(--name-l, 0px));
+  --bot:calc(var(--hero-top-px, 100vh) - var(--nw) * var(--cloud-gap));
+  --w:min(var(--nw) * var(--cloud-on-w), (var(--bot) - var(--page-top, 120px) - var(--cell-h)) * 16 / 9);
   --h:round(up, var(--w) * 9 / 16, var(--cell-h));
   position:fixed;z-index:0;display:block;
-  left:calc(var(--r) - var(--w));top:var(--y);
-  width:var(--w);height:calc(var(--w) * 9 / 16);
-  left:round(down, var(--r) - var(--w), var(--cell-w));
-  top:round(down, min(var(--y), var(--hero-top-px, 100vh) - var(--h) - 2 * var(--cell-h)), var(--cell-h));
-  width:calc(round(up, var(--r), var(--cell-w)) - round(down, var(--r) - var(--w), var(--cell-w)));
+  left:round(down, min(var(--name-l, 0px) + var(--nw) * var(--cloud-on-x), 100vw - var(--edge) - var(--w)), var(--cell-w));
+  top:round(down, var(--bot) - var(--h), var(--cell-h));
+  width:round(up, var(--w), var(--cell-w));
   height:var(--h);
   pointer-events:none;
 }
@@ -465,9 +465,11 @@ footer{
   :root{--edge:24px;--step:24px}
   .nav-meta{display:none}
   .cloud{
-    --cloud-vw:var(--cloud-vw-sm);
+    --w:calc(var(--cloud-vw-sm) * 1vw);
     --r:calc(100vw - var(--edge) - var(--cloud-x-sm) * 1px);
-    --y:calc(var(--page-top, 120px) + var(--cloud-y-sm) * 1px);
+    left:round(down, var(--r) - var(--w), var(--cell-w));
+    top:round(down, min(var(--page-top, 120px) + var(--cloud-y-sm) * 1px, var(--hero-top-px, 100vh) - var(--h) - 2 * var(--cell-h)), var(--cell-h));
+    width:calc(round(up, var(--r), var(--cell-w)) - round(down, var(--r) - var(--w), var(--cell-w)));
   }
   .strata-head{margin-top:88px}
   .cv-intro p,.contact-intro{font-size:1.1rem}
