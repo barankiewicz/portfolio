@@ -70,7 +70,7 @@
   --cloud-gap: .0735;         /* its bottom above the name's text, in name widths */
   --cloud-vw-sm: 42;          /* at 720px and under */
   --cloud-x-sm: 32;           /* px in from the right gutter, at 720 and under */
-  --cloud-y-sm: 119;          /* px down from under the nav, at 720 and under, where the nav takes the width */
+  --cloud-y-sm: 0;            /* px down from the phone nav gap */
   --cell-w: 12px;             /* a field cell: PARAMS.pixel 2 x 6x8 */
   --cell-h: 16px;
 }
@@ -221,6 +221,7 @@ nav > *{pointer-events:auto}
   /* room for the glyphs outside the tight line box, which the sweep's
      mask would otherwise clip */
   padding-block:.3em;margin-block:-.3em;
+  -webkit-user-select:none;user-select:none;
 }
 
 /* === CLOUD CLIP ===
@@ -462,15 +463,10 @@ footer{
   footer{padding:16px 32px;font-size:.6rem}
 }
 @media(max-width:720px){
-  :root{--edge:24px;--step:24px}
-  .nav-meta{display:none}
-  .cloud{
-    --w:calc(var(--cloud-vw-sm) * 1vw);
-    --r:calc(100vw - var(--edge) - var(--cloud-x-sm) * 1px);
-    left:round(down, var(--r) - var(--w), var(--cell-w));
-    top:round(down, min(var(--page-top, 120px) + var(--cloud-y-sm) * 1px, var(--hero-top-px, 100vh) - var(--h) - 2 * var(--cell-h)), var(--cell-h));
-    width:calc(round(up, var(--r), var(--cell-w)) - round(down, var(--r) - var(--w), var(--cell-w)));
-  }
+  :root{--edge:24px;--step:24px;--nav-x:0;--nav-top:12;--nav-gap:10;--nav-size:1.1;--nav-track:.1;--cloud-nav-gap:3;--plate-width:100%}
+  .nav-meta{display:block;transform:none}
+  .proj-plate{width:var(--plate-width);margin-left:0}
+  .proj-title-row h3{min-width:0;overflow-wrap:anywhere}
   .strata-head{margin-top:88px}
   .cv-intro p,.contact-intro{font-size:1.1rem}
   .tl-item h4{font-size:1.3rem}
@@ -479,9 +475,25 @@ footer{
   footer{padding:12px 24px;font-size:.6rem}
 }
 @media(max-width:480px){
-  :root{--edge:16px;--nav-pad:8;--hero-top:88px}
+  :root{--edge:16px;--nav-pad:0;--hero-top:88px}
   .stratum{margin-top:40px;padding:18px 8px 22px calc(var(--nav-pad) * 1px)}
   .tl-year{font-size:1.15rem}
   .channel-item > div{font-size:1.2rem}
   footer{padding:10px 16px;font-size:.55rem}
+}
+@media(max-width:900px) and (max-height:480px){
+  :root{--nav-top:12;--nav-gap:10;--nav-size:1.1;--cloud-nav-gap:3;--cloud-vw-sm:42;--cloud-x-sm:32;--cloud-y-sm:0}
+}
+@media(max-width:720px), (max-width:900px) and (max-height:480px){
+  .cloud{
+    --nav-clear:calc(var(--nav-bottom, var(--page-top, 120px)) + var(--cloud-nav-gap) * var(--cell-h));
+    --name-clear:calc(var(--hero-top-px, 100vh) - 2 * var(--cell-h));
+    --w:min(var(--cloud-vw-sm) * 1vw, max(0px, (var(--name-clear) - var(--nav-clear)) * 16 / 9));
+    --h:round(down, var(--w) * 9 / 16, var(--cell-h));
+    --r:calc(100vw - var(--edge) - var(--cloud-x-sm) * 1px);
+    left:round(down, var(--r) - var(--w), var(--cell-w));
+    top:round(up, max(var(--nav-clear), min(var(--nav-clear) + var(--cloud-y-sm) * 1px, var(--name-clear) - var(--h))), var(--cell-h));
+    width:calc(round(up, var(--r), var(--cell-w)) - round(down, var(--r) - var(--w), var(--cell-w)));
+    height:var(--h);
+  }
 }

@@ -931,13 +931,17 @@
 
   /* The display runs at its own rate; the field only steps and redraws
    * once a tick is owed, so it moves on its own clock (12fps by default). */
+  var stepTime = 0, stepCount = 0;
   function frame(now){
     var tickMs = 1000 / PARAMS.fps, dt = last ? now - last : tickMs, dirty = false;
     owed += dt;
     last = now;
     if (owed >= tickMs){
       owed = Math.min(owed - tickMs, tickMs);
+      var started = performance.now();
       field.step(tickMs);
+      stepTime += performance.now() - started;
+      stepCount++;
       dirty = true;
       for (var k = 0; k < ticks.length; k++) ticks[k]();
     }
@@ -1002,6 +1006,11 @@
       }
       field.tiles.forEach(function(t){ sizes[t.to] = (sizes[t.to] || 0) + 1 / field.tiles.length; });
       return { tones: tones, cells: cells, lit: lit / field.tone.length, sizes: sizes };
+    },
+    stepTime: function(){
+      var ms = stepCount ? stepTime / stepCount : 0;
+      stepTime = 0; stepCount = 0;
+      return ms;
     }
   };
 

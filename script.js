@@ -5,6 +5,7 @@
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var hero = document.querySelector('.hero');
   var navLeft = document.querySelector('.nav-left');
+  var nav = document.getElementById('nav');
   var firstLink = document.querySelector('.nav-links a');
   var heroContent = document.querySelector('.hero-content'), nameText = document.createRange();
 
@@ -14,6 +15,7 @@
    * wherever the nav wrapped or was nudged to. */
   function placePages(){
     root.style.setProperty('--page-top', Math.ceil(navLeft.getBoundingClientRect().bottom + 8) + 'px');
+    root.style.setProperty('--nav-bottom', Math.ceil(nav.getBoundingClientRect().bottom) + 'px');
     root.style.setProperty('--rail-x', Math.round(firstLink.getBoundingClientRect().left) + 'px');
     /* The cloud clip is placed from the name's text, which its hole is
      * cut round (taller than its box at a 0.7 line height), so the two
@@ -33,7 +35,7 @@
 
   /* Nothing locks scrolling: the page box covers the whole screen, and a
    * wheel over the nav, which sits above it, is handed on to the page. */
-  document.getElementById('nav').addEventListener('wheel', function(e){
+  nav.addEventListener('wheel', function(e){
     var page = document.querySelector('.page.active');
     if (page) page.scrollBy(0, e.deltaY * (e.deltaMode === 2 ? page.clientHeight : e.deltaMode === 1 ? 16 : 1));
   }, { passive: true });

@@ -16,7 +16,8 @@
    * Placement is CSS (--cloud-* on :root); everything else is here. */
   var DEFAULTS = {
     boost: 1.5,                                // saturation and brightness lift, since glyphs on black read darker
-    routes: 'all',                             // 'home': the clip fades out while a page is open; 'all': it stays on every route
+    routes: 'all',                             // desktop route mode
+    phoneRoutes: 'home',                       // phone route mode; landscape phones use the short viewport rule
     blendThreshold: 0,                         // this field tone and under shows video, above it the glyph
     backdrop: 'dim',                           // behind a lit glyph: 'dim' (video dimmed by tone) or 'fade' (crossfade to black)
     dimCurve: 1,                               // above 1 the video darkens sooner as tones rise
@@ -301,6 +302,12 @@
     introCells = cells.join();
   }
 
+  function routeTarget(){
+    var phone = matchMedia('(max-width: 720px), (max-width: 900px) and (max-height: 480px)').matches;
+    var routes = phone ? PARAMS.phoneRoutes : PARAMS.routes;
+    return routes === 'all' || !document.body.classList.contains('page-open') ? 1 : 0;
+  }
+
   function frame(now){
     raf = requestAnimationFrame(frame);
     var dt = last ? Math.min(now - last, 100) : 0;
@@ -308,7 +315,7 @@
     if (!fit()) return;
     clock += dt;
     /* on 'home' the clip fades out while a page is open */
-    var to = PARAMS.routes === 'all' || !document.body.classList.contains('page-open') ? 1 : 0, was = appear;
+    var to = routeTarget(), was = appear;
     appear = to > appear ? Math.min(to, appear + dt / (1000 * PARAMS.blendIn)) : Math.max(to, appear - dt / (1000 * PARAMS.blendIn));
     /* the tint's colours follow the video frame and the fade-in */
     if (!tinted || appear !== was || box.rgbFrame !== frameAt(clock) || tinted.key !== tintKey()){
@@ -330,7 +337,7 @@
     ready = true;
     fit();
     /* reduced motion: one settled blend frame, there is no loop */
-    if (reduce) appear = 1;
+    if (reduce) appear = routeTarget();
     if (intro){ intro.setAttribute('data-cutout', 'text'); intro.setAttribute('data-sweep', ''); }
     field.sync();
     if (reduce){ stepBlend(null); paintTint(); field.redraw(); }
@@ -353,7 +360,19 @@
     frames.length = count;
     show();
     field.ticks.push(onTick);
-    if (reduce) return;
+    if (reduce){
+      function syncReduced(){
+        if (!ready || !fit()) return;
+        appear = routeTarget();
+        stepBlend(null);
+        paintTint();
+        draw();
+        field.redraw();
+      }
+      window.addEventListener('hashchange', syncReduced);
+      window.addEventListener('resize', syncReduced);
+      return;
+    }
     document.addEventListener('visibilitychange', function(){ if (document.hidden) pause(); else play(); });
     play();
   }).catch(function(){ canvas.remove(); });
