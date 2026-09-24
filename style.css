@@ -59,18 +59,18 @@
 
   /* The cloud clip, placed from the name's text (script.js sets
      --name-l/-r and --hero-top-px from it), in shares of the name's
-     width, so the two keep one relation at every width: Alicja's 2560
-     screen, 600px wide ending 226px past the name, seven cells above
-     it. It moves left rather than cross the right gutter and shrinks
+     width, so the two keep one relation at every width: on Alicja's
+     2560 screen, 673px wide, ending 318px past the name, 109px above
+     its hole. It moves left rather than cross the right gutter and shrinks
      rather than run under the nav. At 720 and under the nav takes the
      width, so it has its own vw there, hung under the nav. Its box
      snaps outward to the field's cells. */
-  --cloud-on-w: .405954;      /* its width, in name widths (600px at 2560) */
-  --cloud-on-x: .747;         /* its left edge, in name widths from the name's left */
-  --cloud-gap: .0758;         /* its bottom above the name's text, in name widths */
-  --cloud-vw-sm: 58;          /* at 720px and under */
-  --cloud-x-sm: 0;            /* px in from the right gutter, at 720 and under */
-  --cloud-y-sm: 76;           /* px down from under the nav, at 720 and under, where the nav takes the width */
+  --cloud-on-w: .4541;        /* its width, in name widths (673px at 2560) */
+  --cloud-on-x: .7605;        /* its left edge, in name widths from the name's left */
+  --cloud-gap: .0735;         /* its bottom above the name's text, in name widths */
+  --cloud-vw-sm: 42;          /* at 720px and under */
+  --cloud-x-sm: 32;           /* px in from the right gutter, at 720 and under */
+  --cloud-y-sm: 119;          /* px down from under the nav, at 720 and under, where the nav takes the width */
   --cell-w: 12px;             /* a field cell: PARAMS.pixel 2 x 6x8 */
   --cell-h: 16px;
 }
