@@ -343,7 +343,7 @@
      * carry its own padR, which a hole sweeping open grows from zero.
      * A box may also carry its own pad and rag ([left, right, top,
      * bottom] in cells) and fill grey, for a hole that is not a text
-     * hole (the cloud clip's); padR still wins on the right. */
+     * hole (PORTFOLIO's, on the cloud clip); padR still wins on the right. */
     function setCutouts(list){
       cutouts = list || [];
       cutHoles();
@@ -750,7 +750,8 @@
   }
   /* A hole's own pad, rag and fill, from data-cutout-pad / -rag ("left
    * right top bottom", in cells) and data-cutout-fill (a grey), for the
-   * one hole that is not dressed like the text holes: the cloud clip. */
+   * one hole that is not dressed like the text holes: PORTFOLIO's, on
+   * the cloud clip. */
   function ownHole(el){
     var o = {}, pad = el.getAttribute('data-cutout-pad'), rag = el.getAttribute('data-cutout-rag'), fill = el.getAttribute('data-cutout-fill');
     if (pad) o.pad = pad.trim().split(/\s+/).map(Number);
@@ -967,7 +968,6 @@
     params: PARAMS,
     defaults: DEFAULTS,
     glyphs: Object.keys(GLYPHS),
-    bitmaps: GLYPHS,
     large: LARGE,
     reseed: function(){ newField(field.cols, field.rows); cutKey = ''; sync(); },
     /* re-measure the holes now, for a cutout that appears on its own */

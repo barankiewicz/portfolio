@@ -222,20 +222,18 @@ nav > *{pointer-events:auto}
 }
 
 /* === CLOUD CLIP ===
-   The one thing in colour (PRODUCT.md). A canvas cloud.js draws, in its
-   own hole; its edges sit on the field's cell grid, so the ASCII take's
-   glyphs line up with the field round it. Hidden until its first frame
-   can be drawn (cloud.js adds data-sweep then), then it tears open in
-   scanline bands like everything else, the bands alone revealing it.
-   On the way out it also fades while its bands wipe, slower than text
-   (its own --shut), since a wide block of colour wiped in 140ms reads
-   as a cut. */
+   The one thing in colour (PRODUCT.md). A canvas cloud.js draws under
+   the field (it comes before #field in <body>), with no hole of its
+   own: the field runs across it, and its glyphs there take the video's
+   colour. Its edges sit on the field's cell grid, so the video's cells
+   are the field's. cloud.js fades it in once its first frame can be
+   drawn. */
 .cloud{
   --w:min(calc(var(--cloud-vw) * 1vw), calc(var(--cloud-max) * 1px));
   --r:calc(100vw - var(--edge) - var(--cloud-x) * 1px);
   --y:calc(var(--cloud-y) * 1px);
   --h:round(up, var(--w) * 9 / 16, var(--cell-h));
-  position:fixed;z-index:1;display:block;
+  position:fixed;z-index:0;display:block;
   left:calc(var(--r) - var(--w));top:var(--y);
   width:var(--w);height:calc(var(--w) * 9 / 16);
   left:round(down, var(--r) - var(--w), var(--cell-w));
@@ -243,28 +241,7 @@ nav > *{pointer-events:auto}
   width:calc(round(up, var(--r), var(--cell-w)) - round(down, var(--r) - var(--w), var(--cell-w)));
   height:var(--h);
   pointer-events:none;
-  opacity:0;
 }
-.js .cloud[data-sweep]{
-  --shut:.4s;
-  transition:
-    --txt var(--shut) linear calc(var(--i, 0) * 30ms),
-    --cut var(--shut) linear calc(var(--i, 0) * 30ms + var(--shut) * .2),
-    opacity var(--shut) cubic-bezier(.37,0,.63,1);
-}
-.js .cloud[data-sweep].open{
-  opacity:1;
-  transition:
-    --cut var(--sweep) linear calc(var(--i, 0) * var(--stagger)),
-    --txt var(--sweep) linear calc(var(--i, 0) * var(--stagger) + var(--lag)),
-    opacity 0s;
-}
-/* on every route it sits over the pages, which scroll under its hole */
-.cloud.everywhere{z-index:3}
-body.page-open .cloud.everywhere.dim.open{opacity:.35}
-/* field blend: under the field (before it in <body>), no hole of its
-   own; cloud.js fades the video and the glyphs' colour in together */
-.js .cloud.blend{z-index:0;opacity:1;transition:none}
 
 /* === STRATA ===
    Every content block is its own hole in the field (data-cutout in the
@@ -475,7 +452,7 @@ footer{
    Holes and text are simply there; routes swap with no sweep. */
 @media (prefers-reduced-motion: reduce){
   .js [data-sweep]{--cut:1;--txt:1;transition:none;-webkit-mask:none;mask:none}
-  .proj-dither,.js .cloud[data-sweep],.js .cloud[data-sweep].open{transition:none}
+  .proj-dither{transition:none}
 }
 
 /* === RESPONSIVE === */
